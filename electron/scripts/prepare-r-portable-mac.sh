@@ -65,9 +65,26 @@ mkdir -p "$OUTPUT_DIR/bin"
 # Creer un wrapper pour Rscript
 cat > "$OUTPUT_DIR/bin/Rscript" << 'EOF'
 #!/bin/bash
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Resolve the actual directory of this script (handles symlinks)
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+  DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+
+# Set R_HOME relative to this script
 R_HOME="$SCRIPT_DIR/../R.framework/Resources"
 export R_HOME
+
+# Also set DYLD_LIBRARY_PATH for dynamic libraries
+export DYLD_LIBRARY_PATH="$R_HOME/lib:$DYLD_LIBRARY_PATH"
+
+# Debug info (comment out for production)
+# echo "R_HOME: $R_HOME" >&2
+# echo "Rscript: $R_HOME/bin/Rscript" >&2
+
 exec "$R_HOME/bin/Rscript" "$@"
 EOF
 chmod +x "$OUTPUT_DIR/bin/Rscript"
@@ -75,9 +92,22 @@ chmod +x "$OUTPUT_DIR/bin/Rscript"
 # Creer un wrapper pour R
 cat > "$OUTPUT_DIR/bin/R" << 'EOF'
 #!/bin/bash
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Resolve the actual directory of this script (handles symlinks)
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+  DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+
+# Set R_HOME relative to this script
 R_HOME="$SCRIPT_DIR/../R.framework/Resources"
 export R_HOME
+
+# Also set DYLD_LIBRARY_PATH for dynamic libraries
+export DYLD_LIBRARY_PATH="$R_HOME/lib:$DYLD_LIBRARY_PATH"
+
 exec "$R_HOME/bin/R" "$@"
 EOF
 chmod +x "$OUTPUT_DIR/bin/R"

@@ -120,6 +120,20 @@ async function startRServer() {
       log.info(`Web path: ${webPath}`);
       log.info(`Start script: ${startScript}`);
 
+      // Build environment with R_HOME for macOS
+      const rEnv = { ...process.env };
+
+      // On macOS, set R_HOME to R.framework/Resources
+      if (process.platform === 'darwin' && !isDev) {
+        const rPortablePath = getResourcePath('R-portable');
+        const rFrameworkResources = path.join(rPortablePath, 'R.framework', 'Resources');
+        const fs = require('fs');
+        if (fs.existsSync(rFrameworkResources)) {
+          rEnv.R_HOME = rFrameworkResources;
+          log.info(`Set R_HOME to: ${rEnv.R_HOME}`);
+        }
+      }
+
       // Start R process with external script
       rProcess = spawn(rPath, [
         startScript,
@@ -128,7 +142,7 @@ async function startRServer() {
         webPath
       ], {
         cwd: plumberPath,
-        env: { ...process.env }
+        env: rEnv
       });
 
       rProcess.stdout.on('data', (data) => {
