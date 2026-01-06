@@ -1,0 +1,22 @@
+Version: 1.0
+ProjectId: daac64ec-2213-44fa-adee-406a928507c6
+
+RestoreWorkspace: Default
+SaveWorkspace: Default
+AlwaysSaveHistory: Default
+
+EnableCodeIndexing: Yes
+UseSpacesForTab: Yes
+NumSpacesForTab: 2
+Encoding: UTF-8
+
+RnwWeave: knitr
+LaTeX: pdfLaTeX
+RootDocument: vignettes/Rchic.Rmd
+
+BuildType: Package
+PackageUseDevtools: Yes
+PackageInstallArgs: --no-multiarch --with-keep.source
+PackageBuildArgs: -with-keep.source
+PackageCheckArgs: --as-cran
+PackageRoxygenize: rd,collate,namespace

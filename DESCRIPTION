@@ -1,0 +1,33 @@
+Package: rchic
+Title: Statistical Implicative Analysis
+Version: 0.28
+Date: 2025
+Author: Raphael Couturier
+Maintainer: Raphael Couturier <raphael.couturier@univ-fcomte.fr>
+Description: This package is intented to implement all the features of
+    Regis Gras' Statistical Implicative Analysis (SIA). This theory aims at 
+    building association rules of the form "if an object hold property A 
+    it also tends to hold property B". SIA computes the strength of the rules 
+    by counting the number of counterexamples to the rule, and measuring the 
+    surprise as the probability of finding so few counterexamples as the 
+    observed ones, under an assumption of independence between A and B, 
+    taking their sizes into account. With 'rchic' you can build a similirity tree 
+    (using similarity analysis), an implicative graph and a hierarchical tree.
+    See for instance <http://www.springer.com/us/book/9783540789826>.
+Depends:
+    R (>= 3.5)
+Imports:
+    tcltk2,
+    Rgraphviz,
+    stringr,
+    Rcpp
+License: GPL-3
+LinkingTo: Rcpp
+URL: https://github.com/rchic/Rchic/
+VignetteBuilder: knitr
+Suggests:
+    knitr,
+    plumber,
+    jsonlite,
+    later
+RoxygenNote: 7.3.3

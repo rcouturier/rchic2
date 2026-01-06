@@ -1,0 +1,32 @@
+# R
+.Rproj.user
+.Rhistory
+.RData
+src/*.o
+src/*.so
+src/*.dll
+inst/doc
+
+# Node / Electron
+node_modules/
+electron/node_modules/
+electron/dist/
+electron/dist-standalone/
+electron/dist-standalone-mac/
+electron/dist-standalone-linux/
+electron/R-portable/
+electron/R-portable-mac/
+electron/R-portable-win/
+electron/R-portable-linux/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Temp files
+*.log
+*.tmp

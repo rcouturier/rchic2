@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+out/
+
+# R portable (downloaded separately)
+R-portable/
+R-libs/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

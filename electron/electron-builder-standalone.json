@@ -1,0 +1,46 @@
+{
+  "appId": "fr.univ-fcomte.rchic.standalone",
+  "productName": "RCHIC-Standalone",
+  "forceCodeSigning": false,
+  "directories": {
+    "output": "dist-standalone",
+    "buildResources": "assets"
+  },
+  "files": [
+    "src/**/*",
+    "assets/**/*"
+  ],
+  "extraResources": [
+    {
+      "from": "../inst/web",
+      "to": "web"
+    },
+    {
+      "from": "../inst/plumber",
+      "to": "plumber"
+    },
+    {
+      "from": "binaries",
+      "to": "binaries"
+    },
+    {
+      "from": "R-portable-win",
+      "to": "R-portable",
+      "filter": ["**/*"]
+    }
+  ],
+  "asarUnpack": [
+    "**/*.R",
+    "**/*.so",
+    "**/*.dll"
+  ],
+  "win": {
+    "target": ["portable", "zip"],
+    "icon": "assets/icon.ico",
+    "signAndEditExecutable": false,
+    "artifactName": "RCHIC-Standalone-${version}.${ext}"
+  },
+  "portable": {
+    "artifactName": "RCHIC-Standalone-${version}-portable.exe"
+  }
+}

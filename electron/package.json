@@ -1,0 +1,79 @@
+{
+  "name": "rchic-desktop",
+  "version": "0.28.0",
+  "description": "RCHIC - Statistical Implicative Analysis",
+  "main": "src/main.js",
+  "author": "Raphael Couturier <raphael.couturier@univ-fcomte.fr>",
+  "license": "GPL-3.0",
+  "homepage": "https://github.com/rchic/Rchic/",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "build:all": "electron-builder -mwl",
+    "build:win-standalone": "electron-builder --win --config electron-builder-standalone.json",
+    "build:mac-standalone": "electron-builder --mac --config electron-builder-mac-standalone.json",
+    "build:linux-standalone": "electron-builder --linux --config electron-builder-linux-standalone.json",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "electron-log": "^5.0.0",
+    "portfinder": "^1.0.32"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "fr.univ-fcomte.rchic",
+    "productName": "RCHIC",
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../inst/web",
+        "to": "web"
+      },
+      {
+        "from": "../inst/plumber",
+        "to": "plumber"
+      },
+      {
+        "from": "binaries",
+        "to": "binaries"
+      }
+    ],
+    "asarUnpack": [
+      "**/*.R",
+      "**/*.so",
+      "**/*.dll"
+    ],
+    "win": {
+      "target": ["portable", "zip"],
+      "icon": "assets/icon.ico"
+    },
+    "mac": {
+      "target": ["zip"],
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.education"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "icon": "assets/icon.png",
+      "category": "Education"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

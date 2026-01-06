@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RCHIC - Analyse Statistique Implicative</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <!-- Cytoscape.js pour les graphes (local) -->
+  <script src="js/lib/cytoscape.min.js"></script>
+  <!-- D3.js pour les arbres (local) -->
+  <script src="js/lib/d3.v7.min.js"></script>
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <h1>RCHIC</h1>
+        <span class="subtitle">Analyse Statistique Implicative</span>
+      </div>
+      <div class="header-right">
+        <span id="status-indicator" class="status disconnected">Deconnecte</span>
+      </div>
+    </header>
+
+    <!-- Main container -->
+    <div class="main-container">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <!-- File section -->
+        <section class="sidebar-section">
+          <h3>Donnees</h3>
+          <div class="file-input-wrapper">
+            <input type="file" id="file-input" accept=".csv" hidden>
+            <button id="btn-load" class="btn btn-primary btn-block">
+              Charger un fichier CSV
+            </button>
+          </div>
+          <div id="file-info" class="file-info hidden">
+            <p><strong>Fichier:</strong> <span id="filename"></span></p>
+            <p><strong>Observations:</strong> <span id="n-rows"></span></p>
+            <p><strong>Variables:</strong> <span id="n-vars"></span></p>
+          </div>
+        </section>
+
+        <!-- Analysis type -->
+        <section class="sidebar-section">
+          <h3>Type d'analyse</h3>
+          <div class="btn-group-vertical">
+            <button id="btn-implicative" class="btn btn-analysis active" data-type="implicative">
+              Graphe Implicatif
+            </button>
+            <button id="btn-similarity" class="btn btn-analysis" data-type="similarity">
+              Arbre de Similarite
+            </button>
+            <button id="btn-hierarchy" class="btn btn-analysis" data-type="hierarchy">
+              Arbre Hierarchique
+            </button>
+          </div>
+        </section>
+
+        <!-- Options panel - Implicative Graph -->
+        <section id="options-implicative" class="sidebar-section options-panel">
+          <h3>Options du graphe</h3>
+
+          <div class="form-group">
+            <label for="computing-mode">Mode de calcul</label>
+            <select id="computing-mode" class="form-control">
+              <option value="1">Classique</option>
+              <option value="2">Classique + Confiance</option>
+              <option value="3">Implifiance</option>
+              <option value="4">Entropique</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="complete-graph">
+              Graphe complet (a=>b et b=>a)
+            </label>
+          </div>
+
+          <h4>Seuils</h4>
+          <div class="threshold-controls">
+            <div class="threshold-row">
+              <input type="checkbox" id="th1-check" checked>
+              <input type="range" id="th1-range" min="50" max="100" value="99">
+              <span id="th1-value" class="threshold-value">99</span>
+              <input type="color" id="th1-color" value="#e74c3c">
+            </div>
+            <div class="threshold-row">
+              <input type="checkbox" id="th2-check">
+              <input type="range" id="th2-range" min="50" max="100" value="95">
+              <span id="th2-value" class="threshold-value">95</span>
+              <input type="color" id="th2-color" value="#27ae60">
+            </div>
+            <div class="threshold-row">
+              <input type="checkbox" id="th3-check">
+              <input type="range" id="th3-range" min="50" max="100" value="90">
+              <span id="th3-value" class="threshold-value">90</span>
+              <input type="color" id="th3-color" value="#3498db">
+            </div>
+            <div class="threshold-row">
+              <input type="checkbox" id="th4-check">
+              <input type="range" id="th4-range" min="50" max="100" value="85">
+              <span id="th4-value" class="threshold-value">85</span>
+              <input type="color" id="th4-color" value="#9b59b6">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="show-confidence">
+              Afficher la confiance
+            </label>
+          </div>
+        </section>
+
+        <!-- Options panel - Hierarchy -->
+        <section id="options-hierarchy" class="sidebar-section options-panel hidden">
+          <h3>Options de la hierarchie</h3>
+          <div class="form-group">
+            <label for="hierarchy-mode">Mode de calcul</label>
+            <select id="hierarchy-mode" class="form-control">
+              <option value="1">Classique</option>
+              <option value="2">Classique + Confiance</option>
+              <option value="3">Implifiance</option>
+            </select>
+          </div>
+        </section>
+
+        <!-- Options panel - Similarity -->
+        <section id="options-similarity" class="sidebar-section options-panel hidden">
+          <h3>Options de similarite</h3>
+          <p class="text-muted">Aucune option supplementaire</p>
+        </section>
+
+        <!-- Compute button -->
+        <section class="sidebar-section">
+          <button id="btn-compute" class="btn btn-success btn-block" disabled>
+            Calculer
+          </button>
+          <button id="btn-export" class="btn btn-secondary btn-block" disabled>
+            Exporter
+          </button>
+        </section>
+      </aside>
+
+      <!-- Main visualization area -->
+      <main class="visualization-area">
+        <div id="viz-container">
+          <div id="placeholder" class="placeholder">
+            <p>Chargez un fichier CSV pour commencer l'analyse</p>
+          </div>
+          <div id="graph-container" class="hidden"></div>
+          <div id="tree-container" class="hidden"></div>
+        </div>
+
+        <!-- Info panel -->
+        <div id="info-panel" class="info-panel hidden">
+          <h4>Details</h4>
+          <div id="info-content"></div>
+        </div>
+      </main>
+
+      <!-- Variables panel -->
+      <aside class="variables-panel">
+        <div class="panel-header">
+          <h3>Variables</h3>
+          <div class="panel-actions">
+            <button id="btn-select-all" class="btn btn-sm" title="Tout selectionner">Tout</button>
+            <button id="btn-deselect-all" class="btn btn-sm" title="Tout deselectionner">Aucun</button>
+          </div>
+        </div>
+        <div id="variables-list" class="variables-list">
+          <p class="text-muted">Aucune donnee chargee</p>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Loading overlay -->
+    <div id="loading" class="loading-overlay hidden">
+      <div class="spinner"></div>
+      <p>Calcul en cours...</p>
+    </div>
+
+    <!-- Toast notifications -->
+    <div id="toast-container"></div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
