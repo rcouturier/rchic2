@@ -1,0 +1,126 @@
+name: Build macOS Standalone
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'electron/**'
+      - 'inst/**'
+      - '.github/workflows/build-mac-standalone.yml'
+  workflow_dispatch:
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: electron/package-lock.json
+
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: '4.4.2'
+
+      - name: Install R dependencies
+        run: |
+          install.packages(c('plumber', 'jsonlite', 'promises', 'future', 'later',
+                             'httpuv', 'webutils', 'swagger', 'magrittr', 'crayon',
+                             'ellipsis', 'lifecycle', 'rlang', 'R6', 'stringi',
+                             'digest', 'globals', 'listenv', 'parallelly', 'Rcpp'),
+                           repos = 'https://cloud.r-project.org')
+        shell: Rscript {0}
+
+      - name: Prepare R Portable for macOS
+        run: |
+          cd electron
+
+          # Create R-portable-mac directory
+          mkdir -p R-portable-mac
+
+          # Find R.framework location
+          R_FRAMEWORK="/Library/Frameworks/R.framework"
+          if [ ! -d "$R_FRAMEWORK" ]; then
+            echo "Looking for R.framework in alternative locations..."
+            R_FRAMEWORK=$(dirname $(dirname $(which R)))/Frameworks/R.framework
+          fi
+
+          echo "R.framework found at: $R_FRAMEWORK"
+
+          # Copy R.framework
+          cp -R "$R_FRAMEWORK" R-portable-mac/
+
+          # Create bin wrappers
+          mkdir -p R-portable-mac/bin
+
+          cat > R-portable-mac/bin/Rscript << 'WRAPPER'
+          #!/bin/bash
+          SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+          R_HOME="$SCRIPT_DIR/../R.framework/Resources"
+          export R_HOME
+          exec "$R_HOME/bin/Rscript" "$@"
+          WRAPPER
+          chmod +x R-portable-mac/bin/Rscript
+
+          cat > R-portable-mac/bin/R << 'WRAPPER'
+          #!/bin/bash
+          SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+          R_HOME="$SCRIPT_DIR/../R.framework/Resources"
+          export R_HOME
+          exec "$R_HOME/bin/R" "$@"
+          WRAPPER
+          chmod +x R-portable-mac/bin/R
+
+      - name: Install rchic package
+        run: |
+          cd electron
+          LIB_PATH="R-portable-mac/R.framework/Resources/library"
+          ./R-portable-mac/bin/Rscript -e "install.packages('binaries/mac/rchic_0.28.tgz', repos = NULL, type = 'source', lib = '$LIB_PATH')"
+
+      - name: Verify R installation
+        run: |
+          cd electron
+          ./R-portable-mac/bin/Rscript -e "library(plumber); cat('plumber OK\n'); library(rchic); cat('rchic OK\n')"
+
+      - name: Install npm dependencies
+        run: |
+          cd electron
+          npm ci
+
+      - name: Build macOS standalone
+        run: |
+          cd electron
+          npm run build:mac-standalone
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RCHIC-Standalone-macOS-DMG
+          path: electron/dist-standalone-mac/*.dmg
+          retention-days: 30
+
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RCHIC-Standalone-macOS-ZIP
+          path: electron/dist-standalone-mac/*.zip
+          retention-days: 30
+
+      - name: Create Release (on tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            electron/dist-standalone-mac/*.dmg
+            electron/dist-standalone-mac/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
