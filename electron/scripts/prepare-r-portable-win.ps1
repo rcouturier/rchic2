@@ -60,20 +60,37 @@ if ($rVersions.Count -gt 0) {
 }
 
 # Installer les packages necessaires
-Write-Host "Installation des packages R (plumber, jsonlite)..."
+Write-Host "Installation des packages R..." -ForegroundColor Cyan
 $rscript = Join-Path $OUTPUT_DIR "bin\Rscript.exe"
+
+# Verifier aussi dans bin\x64
+if (!(Test-Path $rscript)) {
+    $rscript = Join-Path $OUTPUT_DIR "bin\x64\Rscript.exe"
+}
+
+if (!(Test-Path $rscript)) {
+    Write-Host "ERREUR: Rscript.exe non trouve!" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "Utilisation de Rscript: $rscript"
 
 # Creer un dossier library dans R-portable
 $libPath = Join-Path $OUTPUT_DIR "library"
 
-# Script R pour installer les packages
+# Script R pour installer les packages (meme liste que macOS)
 $installScript = @"
 options(repos = c(CRAN = 'https://cloud.r-project.org'))
-install.packages(c('plumber', 'jsonlite'), lib = '$($libPath -replace '\\', '/')')
+pkgs <- c('plumber', 'jsonlite', 'promises', 'future', 'later',
+          'httpuv', 'webutils', 'swagger', 'magrittr', 'crayon',
+          'ellipsis', 'lifecycle', 'rlang', 'R6', 'stringi',
+          'digest', 'globals', 'listenv', 'parallelly', 'Rcpp')
+install.packages(pkgs, lib = '$($libPath -replace '\\', '/')')
 "@
 
 $installScriptPath = Join-Path $TEMP_DIR "install_packages.R"
-$installScript | Out-File -FilePath $installScriptPath -Encoding UTF8
+# Use ASCII encoding to avoid BOM issues with R
+$installScript | Out-File -FilePath $installScriptPath -Encoding ASCII
 
 & $rscript $installScriptPath
 
@@ -87,7 +104,8 @@ if (Test-Path $rchicBinary) {
 install.packages('$($rchicBinary -replace '\\', '/')', repos = NULL, type = 'win.binary', lib = '$($libPath -replace '\\', '/')')
 "@
     $installRchicScriptPath = Join-Path $TEMP_DIR "install_rchic.R"
-    $installRchicScript | Out-File -FilePath $installRchicScriptPath -Encoding UTF8
+    # Use ASCII encoding to avoid BOM issues with R
+    $installRchicScript | Out-File -FilePath $installRchicScriptPath -Encoding ASCII
     & $rscript $installRchicScriptPath
 
     # Verifier l'installation

@@ -1,0 +1,133 @@
+name: Build Windows Standalone
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'electron/**'
+      - 'inst/**'
+      - '.github/workflows/build-windows-standalone.yml'
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: electron/package-lock.json
+
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: '4.4.2'
+
+      - name: Install R dependencies
+        run: |
+          install.packages(c('plumber', 'jsonlite', 'promises', 'future', 'later',
+                             'httpuv', 'webutils', 'swagger', 'magrittr', 'crayon',
+                             'ellipsis', 'lifecycle', 'rlang', 'R6', 'stringi',
+                             'digest', 'globals', 'listenv', 'parallelly', 'Rcpp'),
+                           repos = 'https://cloud.r-project.org')
+        shell: Rscript {0}
+
+      - name: Prepare R Portable for Windows
+        shell: pwsh
+        run: |
+          $OUTPUT_DIR = "electron/R-portable-win"
+
+          # Find R installation from setup-r
+          $R_HOME = $env:R_HOME
+          if (-not $R_HOME) {
+            # Try to find R in common locations
+            $rPaths = Get-ChildItem "C:\R" -Directory -ErrorAction SilentlyContinue |
+                      Where-Object { $_.Name -match "^R-\d" } |
+                      Sort-Object Name -Descending
+            if ($rPaths.Count -gt 0) {
+              $R_HOME = $rPaths[0].FullName
+            }
+          }
+
+          Write-Host "R_HOME: $R_HOME"
+
+          if (-not $R_HOME -or -not (Test-Path $R_HOME)) {
+            Write-Host "ERROR: R installation not found!"
+            exit 1
+          }
+
+          # Create output directory
+          New-Item -ItemType Directory -Path $OUTPUT_DIR -Force | Out-Null
+
+          # Copy R installation
+          Write-Host "Copying R from $R_HOME to $OUTPUT_DIR..."
+          Copy-Item -Path "$R_HOME\*" -Destination $OUTPUT_DIR -Recurse -Force
+
+          Write-Host "R Portable prepared successfully!"
+          Get-ChildItem $OUTPUT_DIR
+
+      - name: Install rchic package
+        shell: pwsh
+        run: |
+          $rscript = "electron/R-portable-win/bin/Rscript.exe"
+          if (!(Test-Path $rscript)) {
+            $rscript = "electron/R-portable-win/bin/x64/Rscript.exe"
+          }
+
+          $libPath = "electron/R-portable-win/library"
+          $rchicPath = "electron/binaries/win/rchic_0.28.zip"
+
+          Write-Host "Installing rchic from $rchicPath..."
+          & $rscript -e "install.packages('$($rchicPath -replace '\\', '/')', repos = NULL, type = 'win.binary', lib = '$($libPath -replace '\\', '/')')"
+
+      - name: Verify R installation
+        shell: pwsh
+        run: |
+          $rscript = "electron/R-portable-win/bin/Rscript.exe"
+          if (!(Test-Path $rscript)) {
+            $rscript = "electron/R-portable-win/bin/x64/Rscript.exe"
+          }
+
+          & $rscript -e "library(plumber); cat('plumber OK\n'); library(rchic); cat('rchic OK\n')"
+
+      - name: Install npm dependencies
+        run: |
+          cd electron
+          npm ci
+
+      - name: Build Windows standalone
+        run: |
+          cd electron
+          npm run build:win-standalone
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Portable EXE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RCHIC-Standalone-Windows-Portable
+          path: electron/dist-standalone/*-portable.exe
+          retention-days: 30
+
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RCHIC-Standalone-Windows-ZIP
+          path: electron/dist-standalone/*.zip
+          retention-days: 30
+
+      - name: Create Release (on tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            electron/dist-standalone/*-portable.exe
+            electron/dist-standalone/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
