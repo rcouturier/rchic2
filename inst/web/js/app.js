@@ -3,6 +3,11 @@
  * Interface web pour l'Analyse Statistique Implicative
  */
 
+// Register cytoscape-dagre extension
+if (typeof cytoscape !== 'undefined' && typeof cytoscapeDagre !== 'undefined') {
+  cytoscape.use(cytoscapeDagre);
+}
+
 class RchicApp {
   constructor() {
     // Configuration - use same host/port as the web page
@@ -401,17 +406,17 @@ class RchicApp {
     this.cy.elements().remove();
     this.cy.add(elements);
 
-    // Apply layout
+    // Apply dagre layout (hierarchical, top to bottom)
     this.cy.layout({
-      name: 'cose',
+      name: 'dagre',
+      rankDir: 'TB',           // Top to Bottom (source above target)
+      nodeSep: 50,             // Horizontal spacing between nodes
+      rankSep: 80,             // Vertical spacing between ranks
+      edgeSep: 10,             // Spacing between edges
       animate: true,
       animationDuration: 500,
-      nodeRepulsion: 8000,
-      idealEdgeLength: 100,
-      edgeElasticity: 100,
-      nestingFactor: 1.2,
-      gravity: 0.25,
-      numIter: 1000
+      fit: true,
+      padding: 30
     }).run();
 
     // Update info

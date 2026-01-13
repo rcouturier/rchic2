@@ -7,6 +7,9 @@
   <link rel="stylesheet" href="css/styles.css">
   <!-- Cytoscape.js pour les graphes (local) -->
   <script src="js/lib/cytoscape.min.js"></script>
+  <!-- Dagre pour layout hierarchique -->
+  <script src="js/lib/dagre.min.js"></script>
+  <script src="js/lib/cytoscape-dagre.js"></script>
   <!-- D3.js pour les arbres (local) -->
   <script src="js/lib/d3.v7.min.js"></script>
 </head>
@@ -141,7 +144,7 @@
             Calculer
           </button>
           <button id="btn-export" class="btn btn-secondary btn-block" disabled>
-            Exporter
+            Exporter PNG
           </button>
         </section>
       </aside>
