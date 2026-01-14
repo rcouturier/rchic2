@@ -195,6 +195,16 @@ class RchicApp {
         this.updateVariablesList();
         this.enableCompute(true);
 
+        // Show compute section and analysis type section now that file is loaded
+        document.getElementById('compute-section').classList.remove('hidden');
+        document.getElementById('analysis-type-section').classList.remove('hidden');
+
+        // Show options panel for current analysis type
+        this.updateOptionsVisibility();
+
+        // Reset visualization (hide previous results)
+        this.resetVisualization();
+
         this.showToast('Fichier charge avec succes', 'success');
       } else {
         throw new Error(result.error || 'Upload failed');
@@ -407,17 +417,21 @@ class RchicApp {
     this.cy.add(elements);
 
     // Apply dagre layout (hierarchical, top to bottom)
-    this.cy.layout({
+    const layout = this.cy.layout({
       name: 'dagre',
       rankDir: 'TB',           // Top to Bottom (source above target)
       nodeSep: 50,             // Horizontal spacing between nodes
       rankSep: 80,             // Vertical spacing between ranks
       edgeSep: 10,             // Spacing between edges
-      animate: true,
-      animationDuration: 500,
-      fit: true,
+      animate: false,
+      fit: false,
       padding: 30
-    }).run();
+    });
+
+    layout.run();
+
+    // Fit graph to show all elements in the viewport
+    this.cy.fit(null, 50);
 
     // Update info
     this.showToast(`Graphe: ${data.n_nodes} noeuds, ${data.n_edges} aretes`, 'info');
@@ -438,8 +452,53 @@ class RchicApp {
   }
 
   updateVisualization() {
-    if (this.currentAnalysis === 'implicative' && this.currentData) {
-      this.renderImplicativeGraph(this.currentData);
+    if (this.currentAnalysis === 'implicative' && this.currentData && this.cy) {
+      // Update edges visibility and colors without redoing the layout
+      const showConfidence = document.getElementById('show-confidence').checked;
+      const data = this.currentData;
+
+      // Helper to unwrap array values from R's JSON serialization
+      const unwrap = (val) => Array.isArray(val) ? val[0] : val;
+
+      // Update each edge
+      data.edges.forEach(edge => {
+        const edgeId = unwrap(edge.id);
+        const implication = unwrap(edge.implication);
+        const color = this.getEdgeColor(implication);
+        const cyEdge = this.cy.getElementById(edgeId);
+
+        if (color) {
+          // Edge should be visible
+          if (cyEdge.length === 0) {
+            // Edge doesn't exist, add it
+            this.cy.add({
+              data: {
+                id: edgeId,
+                source: unwrap(edge.source),
+                target: unwrap(edge.target),
+                implication: implication,
+                confidence: unwrap(edge.confidence).toFixed(3),
+                counter_examples: unwrap(edge.counter_examples),
+                color: color
+              },
+              classes: showConfidence ? 'show-label' : ''
+            });
+          } else {
+            // Edge exists, update color and class
+            cyEdge.data('color', color);
+            if (showConfidence) {
+              cyEdge.addClass('show-label');
+            } else {
+              cyEdge.removeClass('show-label');
+            }
+          }
+        } else {
+          // Edge should be hidden
+          if (cyEdge.length > 0) {
+            cyEdge.remove();
+          }
+        }
+      });
     }
   }
 
@@ -640,10 +699,8 @@ class RchicApp {
       btn.classList.toggle('active', btn.dataset.type === type);
     });
 
-    // Show/hide option panels
-    document.getElementById('options-implicative').classList.toggle('hidden', type !== 'implicative');
-    document.getElementById('options-hierarchy').classList.toggle('hidden', type !== 'hierarchy');
-    document.getElementById('options-similarity').classList.toggle('hidden', type !== 'similarity');
+    // Update options visibility
+    this.updateOptionsVisibility();
 
     // Reset visualization if data loaded
     if (this.variables.length > 0) {
@@ -652,6 +709,46 @@ class RchicApp {
       document.getElementById('tree-container').classList.add('hidden');
       document.getElementById('info-panel').classList.add('hidden');
     }
+  }
+
+  updateOptionsVisibility() {
+    const fileLoaded = this.variables.length > 0;
+
+    // Show/hide option panels based on current analysis type AND file loaded status
+    document.getElementById('options-implicative').classList.toggle('hidden',
+      !fileLoaded || this.currentAnalysis !== 'implicative');
+    document.getElementById('options-hierarchy').classList.toggle('hidden',
+      !fileLoaded || this.currentAnalysis !== 'hierarchy');
+    document.getElementById('options-similarity').classList.toggle('hidden',
+      !fileLoaded || this.currentAnalysis !== 'similarity');
+  }
+
+  resetVisualization() {
+    // Hide graph and tree containers
+    document.getElementById('graph-container').classList.add('hidden');
+    document.getElementById('tree-container').classList.add('hidden');
+
+    // Show placeholder with updated message
+    const placeholder = document.getElementById('placeholder');
+    placeholder.classList.remove('hidden');
+    placeholder.innerHTML = '<p>Cliquez sur Calculer pour lancer l\'analyse</p>';
+
+    // Hide info panel
+    document.getElementById('info-panel').classList.add('hidden');
+
+    // Reset current data
+    this.currentData = null;
+
+    // Disable export button
+    document.getElementById('btn-export').disabled = true;
+
+    // Clear cytoscape graph if exists
+    if (this.cy) {
+      this.cy.elements().remove();
+    }
+
+    // Clear tree container
+    document.getElementById('tree-container').innerHTML = '';
   }
 
   updateFileInfo(filename, nRows, nVars) {

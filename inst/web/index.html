@@ -46,8 +46,18 @@
           </div>
         </section>
 
-        <!-- Analysis type -->
-        <section class="sidebar-section">
+        <!-- Compute button (hidden until file loaded) -->
+        <section id="compute-section" class="sidebar-section hidden">
+          <button id="btn-compute" class="btn btn-success btn-block">
+            Calculer
+          </button>
+          <button id="btn-export" class="btn btn-secondary btn-block" disabled>
+            Exporter PNG
+          </button>
+        </section>
+
+        <!-- Analysis type (hidden until file loaded) -->
+        <section id="analysis-type-section" class="sidebar-section hidden">
           <h3>Type d'analyse</h3>
           <div class="btn-group-vertical">
             <button id="btn-implicative" class="btn btn-analysis active" data-type="implicative">
@@ -62,8 +72,8 @@
           </div>
         </section>
 
-        <!-- Options panel - Implicative Graph -->
-        <section id="options-implicative" class="sidebar-section options-panel">
+        <!-- Options panel - Implicative Graph (hidden until implicative selected) -->
+        <section id="options-implicative" class="sidebar-section options-panel hidden">
           <h3>Options du graphe</h3>
 
           <div class="form-group">
@@ -136,16 +146,6 @@
         <section id="options-similarity" class="sidebar-section options-panel hidden">
           <h3>Options de similarite</h3>
           <p class="text-muted">Aucune option supplementaire</p>
-        </section>
-
-        <!-- Compute button -->
-        <section class="sidebar-section">
-          <button id="btn-compute" class="btn btn-success btn-block" disabled>
-            Calculer
-          </button>
-          <button id="btn-export" class="btn btn-secondary btn-block" disabled>
-            Exporter PNG
-          </button>
         </section>
       </aside>
 
