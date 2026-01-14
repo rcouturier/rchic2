@@ -46,20 +46,41 @@ jobs:
 
           # Find R installation from setup-r
           $R_HOME = $env:R_HOME
-          if (-not $R_HOME) {
-            # Try to find R in common locations
-            $rPaths = Get-ChildItem "C:\R" -Directory -ErrorAction SilentlyContinue |
-                      Where-Object { $_.Name -match "^R-\d" } |
-                      Sort-Object Name -Descending
-            if ($rPaths.Count -gt 0) {
-              $R_HOME = $rPaths[0].FullName
+          Write-Host "R_HOME from env: $R_HOME"
+
+          if (-not $R_HOME -or -not (Test-Path $R_HOME)) {
+            # Try to find R in common locations used by setup-r
+            $searchPaths = @(
+              "C:\R",
+              "C:\Program Files\R",
+              "$env:RUNNER_TOOL_CACHE\R"
+            )
+
+            foreach ($basePath in $searchPaths) {
+              Write-Host "Searching in: $basePath"
+              if (Test-Path $basePath) {
+                $rPaths = Get-ChildItem $basePath -Directory -ErrorAction SilentlyContinue |
+                          Where-Object { $_.Name -match "^R-?\d" } |
+                          Sort-Object Name -Descending
+                if ($rPaths.Count -gt 0) {
+                  $R_HOME = $rPaths[0].FullName
+                  Write-Host "Found R at: $R_HOME"
+                  break
+                }
+              }
             }
           }
 
-          Write-Host "R_HOME: $R_HOME"
+          Write-Host "Final R_HOME: $R_HOME"
 
           if (-not $R_HOME -or -not (Test-Path $R_HOME)) {
             Write-Host "ERROR: R installation not found!"
+            Write-Host "Listing potential R locations..."
+            Get-ChildItem "C:\" -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match "^R" }
+            Get-ChildItem "C:\Program Files" -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match "^R" }
+            if ($env:RUNNER_TOOL_CACHE) {
+              Get-ChildItem $env:RUNNER_TOOL_CACHE -Directory -ErrorAction SilentlyContinue
+            }
             exit 1
           }
 
