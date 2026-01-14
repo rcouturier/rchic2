@@ -25,8 +25,7 @@
     },
     {
       "from": "R-portable-win",
-      "to": "R-portable",
-      "filter": ["**/*"]
+      "to": "R-portable"
     }
   ],
   "asarUnpack": [

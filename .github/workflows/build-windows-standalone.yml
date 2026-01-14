@@ -84,8 +84,29 @@ jobs:
           $libPath = "electron/R-portable-win/library"
           $rchicPath = "electron/binaries/win/rchic_0.28.zip"
 
+          # Verify source file exists
+          if (!(Test-Path $rchicPath)) {
+            Write-Host "ERROR: rchic binary not found at $rchicPath"
+            Get-ChildItem "electron/binaries" -Recurse
+            exit 1
+          }
+
           Write-Host "Installing rchic from $rchicPath..."
-          & $rscript -e "install.packages('$($rchicPath -replace '\\', '/')', repos = NULL, type = 'win.binary', lib = '$($libPath -replace '\\', '/')')"
+          Write-Host "Library path: $libPath"
+
+          # Install with verbose output
+          & $rscript -e "install.packages('$($rchicPath -replace '\\', '/')', repos = NULL, type = 'win.binary', lib = '$($libPath -replace '\\', '/')', verbose = TRUE)"
+
+          # Verify installation
+          if (!(Test-Path "$libPath/rchic")) {
+            Write-Host "ERROR: rchic package not found in library after installation!"
+            Write-Host "Library contents:"
+            Get-ChildItem $libPath
+            exit 1
+          }
+
+          Write-Host "rchic package installed successfully!"
+          Get-ChildItem "$libPath/rchic"
 
       - name: Verify R installation
         shell: pwsh
@@ -95,7 +116,27 @@ jobs:
             $rscript = "electron/R-portable-win/bin/x64/Rscript.exe"
           }
 
-          & $rscript -e "library(plumber); cat('plumber OK\n'); library(rchic); cat('rchic OK\n')"
+          Write-Host "Testing package loading..."
+          & $rscript -e "library(plumber); cat('plumber OK\n'); library(rchic); cat('rchic OK\n'); cat('rchic version:', as.character(packageVersion('rchic')), '\n')"
+
+          Write-Host ""
+          Write-Host "Library contents:"
+          Get-ChildItem "electron/R-portable-win/library" | Select-Object Name
+
+      - name: List R-portable-win contents before build
+        shell: pwsh
+        run: |
+          Write-Host "=== R-portable-win library packages ==="
+          Get-ChildItem "electron/R-portable-win/library" | Select-Object Name
+
+          Write-Host ""
+          Write-Host "=== Checking rchic package structure ==="
+          if (Test-Path "electron/R-portable-win/library/rchic") {
+            Get-ChildItem "electron/R-portable-win/library/rchic" -Recurse | Select-Object FullName
+          } else {
+            Write-Host "ERROR: rchic folder not found!"
+            exit 1
+          }
 
       - name: Install npm dependencies
         run: |
