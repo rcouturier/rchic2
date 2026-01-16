@@ -17,6 +17,9 @@
     "build:win-standalone": "electron-builder --win --config electron-builder-standalone.json",
     "build:mac-standalone": "electron-builder --mac --config electron-builder-mac-standalone.json",
     "build:linux-standalone": "electron-builder --linux --config electron-builder-linux-standalone.json",
+    "build:win-portable-folder": "electron-builder --win --config electron-builder-portable-folder.json",
+    "build:mac-portable-folder": "electron-builder --mac --config electron-builder-portable-folder.json",
+    "build:linux-portable-folder": "electron-builder --linux --config electron-builder-portable-folder.json",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {

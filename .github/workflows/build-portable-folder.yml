@@ -1,0 +1,384 @@
+name: Build Portable Folder (All Platforms)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Create a GitHub release'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  # ============================================================================
+  # Linux Build
+  # ============================================================================
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: electron/package-lock.json
+
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: '4.4.2'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libsodium-dev libicu-dev
+
+      - name: Install R packages
+        run: |
+          install.packages(c('plumber', 'jsonlite', 'promises', 'future', 'later',
+                             'httpuv', 'webutils', 'swagger', 'magrittr', 'crayon',
+                             'ellipsis', 'lifecycle', 'rlang', 'R6', 'stringi',
+                             'sodium', 'digest', 'globals', 'listenv', 'parallelly', 'Rcpp'),
+                           repos = 'https://cloud.r-project.org',
+                           dependencies = c('Depends', 'Imports', 'LinkingTo'))
+        shell: Rscript {0}
+
+      - name: Prepare R Portable for Linux
+        run: |
+          OUTPUT_DIR="electron/R-portable-linux"
+          R_HOME=$(R RHOME)
+
+          echo "R_HOME: $R_HOME"
+
+          # Create output directory and copy R
+          mkdir -p "$OUTPUT_DIR"
+          cp -R "$R_HOME"/* "$OUTPUT_DIR/"
+
+          # Create bin directory with executables
+          mkdir -p "$OUTPUT_DIR/bin"
+          cp "$R_HOME/bin/R" "$OUTPUT_DIR/bin/" 2>/dev/null || true
+          cp "$R_HOME/bin/Rscript" "$OUTPUT_DIR/bin/" 2>/dev/null || true
+          chmod +x "$OUTPUT_DIR/bin/R" 2>/dev/null || true
+          chmod +x "$OUTPUT_DIR/bin/Rscript" 2>/dev/null || true
+
+          echo "R Portable prepared at $OUTPUT_DIR"
+          ls -la "$OUTPUT_DIR"
+
+      - name: Install rchic package from source
+        run: |
+          R CMD INSTALL --library=electron/R-portable-linux/library .
+
+      - name: Verify R installation
+        run: |
+          export R_HOME="electron/R-portable-linux"
+          Rscript -e ".libPaths('electron/R-portable-linux/library'); library(plumber); cat('plumber OK\n'); library(rchic); cat('rchic OK\n')"
+
+      - name: Install npm dependencies
+        run: |
+          cd electron
+          npm ci
+
+      - name: Build Linux portable folder
+        run: |
+          cd electron
+          npm run build:linux-portable-folder
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create ZIP archive
+        run: |
+          cd electron/dist-portable-folder
+          zip -r RCHIC-Portable-Linux.zip linux-unpacked
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RCHIC-Portable-Linux
+          path: electron/dist-portable-folder/RCHIC-Portable-Linux.zip
+          retention-days: 30
+
+  # ============================================================================
+  # macOS Build
+  # ============================================================================
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: electron/package-lock.json
+
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: '4.4.2'
+
+      - name: Install R packages
+        run: |
+          install.packages(c('plumber', 'jsonlite', 'promises', 'future', 'later',
+                             'httpuv', 'webutils', 'swagger', 'magrittr', 'crayon',
+                             'ellipsis', 'lifecycle', 'rlang', 'R6', 'stringi',
+                             'sodium', 'digest', 'globals', 'listenv', 'parallelly', 'Rcpp'),
+                           repos = 'https://cloud.r-project.org',
+                           dependencies = c('Depends', 'Imports', 'LinkingTo'))
+        shell: Rscript {0}
+
+      - name: Prepare R Portable for macOS
+        run: |
+          OUTPUT_DIR="electron/R-portable-mac"
+
+          # Find R.framework
+          if [ -d "/Library/Frameworks/R.framework" ]; then
+            R_FRAMEWORK="/Library/Frameworks/R.framework"
+          elif [ -d "/opt/homebrew/Cellar/r" ]; then
+            R_FRAMEWORK=$(find /opt/homebrew/Cellar/r -name "R.framework" -type d | head -1)
+          elif [ -d "/usr/local/Cellar/r" ]; then
+            R_FRAMEWORK=$(find /usr/local/Cellar/r -name "R.framework" -type d | head -1)
+          fi
+
+          echo "R.framework found at: $R_FRAMEWORK"
+
+          # Create output directory
+          mkdir -p "$OUTPUT_DIR"
+
+          # Copy R.framework
+          cp -R "$R_FRAMEWORK" "$OUTPUT_DIR/"
+
+          # Create bin directory with wrapper scripts
+          mkdir -p "$OUTPUT_DIR/bin"
+
+          cat > "$OUTPUT_DIR/bin/Rscript" << 'EOF'
+          #!/bin/bash
+          SOURCE="${BASH_SOURCE[0]}"
+          while [ -h "$SOURCE" ]; do
+            DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+            SOURCE="$(readlink "$SOURCE")"
+            [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+          done
+          SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+          R_HOME="$SCRIPT_DIR/../R.framework/Resources"
+          export R_HOME
+          export DYLD_LIBRARY_PATH="$R_HOME/lib:$DYLD_LIBRARY_PATH"
+          exec "$R_HOME/bin/Rscript" "$@"
+          EOF
+          chmod +x "$OUTPUT_DIR/bin/Rscript"
+
+          echo "R Portable prepared at $OUTPUT_DIR"
+          ls -la "$OUTPUT_DIR"
+
+      - name: Install rchic package from source
+        run: |
+          R CMD INSTALL --library=electron/R-portable-mac/R.framework/Resources/library .
+
+      - name: Verify R installation
+        run: |
+          electron/R-portable-mac/bin/Rscript -e "library(plumber); cat('plumber OK\n'); library(rchic); cat('rchic OK\n')"
+
+      - name: Install npm dependencies
+        run: |
+          cd electron
+          npm ci
+
+      - name: Build macOS portable folder
+        run: |
+          cd electron
+          npm run build:mac-portable-folder
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create ZIP archive
+        run: |
+          cd electron/dist-portable-folder
+          # macOS creates a .app bundle in mac/ directory
+          if [ -d "mac" ]; then
+            zip -r RCHIC-Portable-macOS.zip mac
+          elif [ -d "mac-arm64" ]; then
+            zip -r RCHIC-Portable-macOS.zip mac-arm64
+          else
+            zip -r RCHIC-Portable-macOS.zip .
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RCHIC-Portable-macOS
+          path: electron/dist-portable-folder/RCHIC-Portable-macOS.zip
+          retention-days: 30
+
+  # ============================================================================
+  # Windows Build
+  # ============================================================================
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: electron/package-lock.json
+
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: '4.4.2'
+
+      - name: Install R packages
+        run: |
+          install.packages(c('plumber', 'jsonlite', 'promises', 'future', 'later',
+                             'httpuv', 'webutils', 'swagger', 'magrittr', 'crayon',
+                             'ellipsis', 'lifecycle', 'rlang', 'R6', 'stringi',
+                             'sodium', 'digest', 'globals', 'listenv', 'parallelly', 'Rcpp'),
+                           repos = 'https://cloud.r-project.org',
+                           dependencies = c('Depends', 'Imports', 'LinkingTo'))
+        shell: Rscript {0}
+
+      - name: Prepare R Portable for Windows
+        shell: pwsh
+        run: |
+          $OUTPUT_DIR = "electron/R-portable-win"
+          $R_HOME = $env:R_HOME
+
+          Write-Host "R_HOME: $R_HOME"
+
+          if (-not $R_HOME -or -not (Test-Path $R_HOME)) {
+            # Search for R installation
+            $searchPaths = @("C:\R", "C:\Program Files\R", "$env:RUNNER_TOOL_CACHE\R")
+            foreach ($basePath in $searchPaths) {
+              if (Test-Path $basePath) {
+                $rPaths = Get-ChildItem $basePath -Directory -ErrorAction SilentlyContinue |
+                          Where-Object { $_.Name -match "^R-?\d" } |
+                          Sort-Object Name -Descending
+                if ($rPaths.Count -gt 0) {
+                  $R_HOME = $rPaths[0].FullName
+                  break
+                }
+              }
+            }
+          }
+
+          if (-not $R_HOME -or -not (Test-Path $R_HOME)) {
+            Write-Host "ERROR: R installation not found!"
+            exit 1
+          }
+
+          Write-Host "Using R from: $R_HOME"
+
+          # Create output directory and copy R
+          New-Item -ItemType Directory -Path $OUTPUT_DIR -Force | Out-Null
+          Copy-Item -Path "$R_HOME\*" -Destination $OUTPUT_DIR -Recurse -Force
+
+          Write-Host "R Portable prepared at $OUTPUT_DIR"
+          Get-ChildItem $OUTPUT_DIR
+
+      - name: Install rchic package from source
+        shell: pwsh
+        run: |
+          $rscript = "electron/R-portable-win/bin/Rscript.exe"
+          if (!(Test-Path $rscript)) {
+            $rscript = "electron/R-portable-win/bin/x64/Rscript.exe"
+          }
+
+          # Install rchic from source
+          R CMD INSTALL --library=electron/R-portable-win/library .
+
+      - name: Verify R installation
+        shell: pwsh
+        run: |
+          $rscript = "electron/R-portable-win/bin/Rscript.exe"
+          if (!(Test-Path $rscript)) {
+            $rscript = "electron/R-portable-win/bin/x64/Rscript.exe"
+          }
+          & $rscript -e "library(plumber); cat('plumber OK\n'); library(rchic); cat('rchic OK\n')"
+
+      - name: Install npm dependencies
+        run: |
+          cd electron
+          npm ci
+
+      - name: Build Windows portable folder
+        run: |
+          cd electron
+          npm run build:win-portable-folder
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create ZIP archive
+        shell: pwsh
+        run: |
+          cd electron/dist-portable-folder
+          Compress-Archive -Path win-unpacked -DestinationPath RCHIC-Portable-Windows.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RCHIC-Portable-Windows
+          path: electron/dist-portable-folder/RCHIC-Portable-Windows.zip
+          retention-days: 30
+
+  # ============================================================================
+  # Create Release (when all builds complete)
+  # ============================================================================
+  create-release:
+    needs: [build-linux, build-macos, build-windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List artifacts
+        run: |
+          echo "Downloaded artifacts:"
+          find artifacts -type f -name "*.zip"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: RCHIC Portable ${{ github.ref_name }}
+          body: |
+            ## RCHIC Portable Release
+
+            Download the ZIP file for your platform, extract it, and run the application directly.
+            No installation required - all dependencies (including R) are bundled.
+
+            ### Downloads
+            - **Linux**: `RCHIC-Portable-Linux.zip`
+            - **macOS**: `RCHIC-Portable-macOS.zip`
+            - **Windows**: `RCHIC-Portable-Windows.zip`
+
+            ### How to use
+            1. Download the ZIP for your platform
+            2. Extract the archive
+            3. Run the executable:
+               - Linux: `./rchic-desktop`
+               - macOS: Open `RCHIC-Standalone.app`
+               - Windows: Run `RCHIC-Standalone.exe`
+          files: |
+            artifacts/RCHIC-Portable-Linux/RCHIC-Portable-Linux.zip
+            artifacts/RCHIC-Portable-macOS/RCHIC-Portable-macOS.zip
+            artifacts/RCHIC-Portable-Windows/RCHIC-Portable-Windows.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

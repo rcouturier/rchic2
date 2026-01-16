@@ -122,18 +122,19 @@ options(repos = c(CRAN = 'https://cloud.r-project.org'))
 lib_path <- '$LIB_PATH'
 
 # Liste des packages necessaires (plumber et toutes ses dependances)
+# Note: otel (OpenTelemetry) removed - not needed and very slow to compile
 packages <- c(
     'plumber', 'jsonlite', 'promises', 'future', 'later',
     'httpuv', 'webutils', 'swagger', 'magrittr', 'crayon',
     'ellipsis', 'lifecycle', 'rlang', 'R6', 'stringi',
-    'sodium', 'otel', 'digest', 'globals', 'listenv', 'parallelly'
+    'sodium', 'digest', 'globals', 'listenv', 'parallelly', 'Rcpp'
 )
 
-# Installer les packages manquants
+# Installer les packages manquants (only required dependencies, not Suggests)
 for (pkg in packages) {
     if (!requireNamespace(pkg, quietly = TRUE)) {
         cat('Installation de', pkg, '...\n')
-        install.packages(pkg, lib = lib_path, dependencies = TRUE)
+        install.packages(pkg, lib = lib_path, dependencies = c('Depends', 'Imports', 'LinkingTo'))
     }
 }
 cat('Packages installes avec succes!\n')
@@ -170,4 +171,7 @@ echo "Dossier: $OUTPUT_DIR"
 du -sh "$OUTPUT_DIR"
 echo ""
 echo "Prochaines etapes:"
-echo "1. Executez le build: cd $ELECTRON_DIR && npm run build:mac-standalone"
+echo "1. cd $ELECTRON_DIR && npm install"
+echo "2. npm run build:mac-portable-folder"
+echo ""
+echo "Le dossier portable sera dans: dist-portable-folder/mac/"

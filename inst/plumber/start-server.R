@@ -44,6 +44,30 @@ cat("===========================================\n\n")
 # Auto-install rchic package if not available
 # ============================================================================
 install_rchic_if_needed <- function(plumber_dir) {
+  # Check for marker file to skip verification (faster startup)
+  marker_file <- file.path(dirname(plumber_dir), ".rchic_ready")
+  if (file.exists(marker_file)) {
+    cat("Package 'rchic' already configured (marker found).\n")
+    return(invisible(NULL))
+  }
+
+  # In portable mode with R-portable, rchic should already be installed
+  r_home <- Sys.getenv("R_HOME")
+  if (nzchar(r_home)) {
+    portable_rchic <- file.path(r_home, "library", "rchic")
+    if (dir.exists(portable_rchic)) {
+      cat("Package 'rchic' found in R-portable.\n")
+      # Create marker for faster startup next time
+      tryCatch({
+        writeLines("installed", marker_file)
+        cat("Created startup marker for faster launches.\n")
+      }, error = function(e) {
+        # Ignore if we can't write the marker (read-only filesystem)
+      })
+      return(invisible(NULL))
+    }
+  }
+
   if (!requireNamespace("rchic", quietly = TRUE)) {
     cat("Package 'rchic' not found. Installing from bundled binary...\n")
 
@@ -95,6 +119,14 @@ install_rchic_if_needed <- function(plumber_dir) {
       tryCatch({
         install.packages(pkg_file, repos = NULL, type = pkg_type, lib = user_lib)
         cat("Successfully installed rchic package!\n")
+        # Create marker for faster startup next time
+        marker_file <- file.path(dirname(plumber_dir), ".rchic_ready")
+        tryCatch({
+          writeLines("installed", marker_file)
+          cat("Created startup marker for faster launches.\n")
+        }, error = function(e) {
+          # Ignore if we can't write the marker
+        })
       }, error = function(e) {
         cat("Error installing rchic:", e$message, "\n")
         stop("Failed to install rchic package")
@@ -111,6 +143,14 @@ install_rchic_if_needed <- function(plumber_dir) {
     }
   } else {
     cat("Package 'rchic' is already installed.\n")
+    # Create marker for faster startup next time
+    marker_file <- file.path(dirname(plumber_dir), ".rchic_ready")
+    tryCatch({
+      writeLines("installed", marker_file)
+      cat("Created startup marker for faster launches.\n")
+    }, error = function(e) {
+      # Ignore if we can't write the marker
+    })
   }
 }
 

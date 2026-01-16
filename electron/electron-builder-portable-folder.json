@@ -1,0 +1,69 @@
+{
+  "appId": "fr.univ-fcomte.rchic.standalone",
+  "productName": "RCHIC-Standalone",
+  "forceCodeSigning": false,
+  "directories": {
+    "output": "dist-portable-folder",
+    "buildResources": "assets"
+  },
+  "files": [
+    "src/**/*",
+    "assets/**/*"
+  ],
+  "extraResources": [
+    {
+      "from": "../inst/web",
+      "to": "web"
+    },
+    {
+      "from": "../inst/plumber",
+      "to": "plumber"
+    },
+    {
+      "from": "binaries",
+      "to": "binaries"
+    }
+  ],
+  "asar": false,
+  "win": {
+    "target": ["dir"],
+    "icon": "assets/icon.ico",
+    "signAndEditExecutable": false,
+    "artifactName": "RCHIC-Portable-${version}-win",
+    "extraResources": [
+      {
+        "from": "R-portable-win",
+        "to": "R-portable",
+        "filter": ["**/*"]
+      }
+    ]
+  },
+  "mac": {
+    "target": ["dir"],
+    "icon": "assets/icon.icns",
+    "category": "public.app-category.education",
+    "artifactName": "RCHIC-Portable-${version}-mac",
+    "hardenedRuntime": false,
+    "gatekeeperAssess": false,
+    "extraResources": [
+      {
+        "from": "R-portable-mac",
+        "to": "R-portable",
+        "filter": ["**/*"]
+      }
+    ]
+  },
+  "linux": {
+    "target": ["dir"],
+    "icon": "assets/icon.png",
+    "category": "Education",
+    "artifactName": "RCHIC-Portable-${version}-linux",
+    "extraResources": [
+      {
+        "from": "R-portable-linux",
+        "to": "R-portable",
+        "filter": ["**/*"]
+      }
+    ]
+  }
+}

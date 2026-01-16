@@ -72,19 +72,20 @@ options(repos = c(CRAN = 'https://cloud.r-project.org'))
 lib_path <- '$LIB_PATH'
 
 # Liste des packages necessaires (plumber et toutes ses dependances)
+# Note: otel (OpenTelemetry) removed - not needed and very slow to compile
 packages <- c(
     'plumber', 'jsonlite', 'promises', 'future', 'later',
     'httpuv', 'webutils', 'swagger', 'magrittr', 'crayon',
     'ellipsis', 'lifecycle', 'rlang', 'R6', 'stringi',
-    'sodium', 'otel', 'digest', 'globals', 'listenv', 'parallelly',
+    'sodium', 'digest', 'globals', 'listenv', 'parallelly',
     'Rcpp'
 )
 
-# Installer les packages
+# Installer les packages (only required dependencies, not Suggests)
 for (pkg in packages) {
     if (!requireNamespace(pkg, quietly = TRUE, lib.loc = lib_path)) {
         cat('Installation de', pkg, '...\n')
-        install.packages(pkg, lib = lib_path, dependencies = TRUE)
+        install.packages(pkg, lib = lib_path, dependencies = c('Depends', 'Imports', 'LinkingTo'))
     }
 }
 cat('Packages installes avec succes!\n')

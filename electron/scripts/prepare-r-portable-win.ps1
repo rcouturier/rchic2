@@ -79,13 +79,14 @@ Write-Host "Utilisation de Rscript: $rscript"
 $libPath = Join-Path $OUTPUT_DIR "library"
 
 # Script R pour installer les packages (meme liste que macOS)
+# Note: otel (OpenTelemetry) removed - not needed and very slow to compile
 $installScript = @"
 options(repos = c(CRAN = 'https://cloud.r-project.org'))
 pkgs <- c('plumber', 'jsonlite', 'promises', 'future', 'later',
           'httpuv', 'webutils', 'swagger', 'magrittr', 'crayon',
           'ellipsis', 'lifecycle', 'rlang', 'R6', 'stringi',
-          'digest', 'globals', 'listenv', 'parallelly', 'Rcpp')
-install.packages(pkgs, lib = '$($libPath -replace '\\', '/')')
+          'sodium', 'digest', 'globals', 'listenv', 'parallelly', 'Rcpp')
+install.packages(pkgs, lib = '$($libPath -replace '\\', '/')', dependencies = c('Depends', 'Imports', 'LinkingTo'))
 "@
 
 $installScriptPath = Join-Path $TEMP_DIR "install_packages.R"
@@ -134,5 +135,7 @@ Write-Host "=== R Portable pret ===" -ForegroundColor Green
 Write-Host "Dossier: $OUTPUT_DIR"
 Write-Host ""
 Write-Host "Prochaines etapes:"
-Write-Host "1. Copiez le dossier R-portable-win vers votre machine Linux"
-Write-Host "2. Executez le build: npm run build:win-standalone"
+Write-Host "1. npm install"
+Write-Host "2. npm run build:win-portable-folder"
+Write-Host ""
+Write-Host "Le dossier portable sera dans: dist-portable-folder/win-unpacked/"
