@@ -179,29 +179,56 @@ jobs:
             [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
           done
           SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
-          R_HOME="$SCRIPT_DIR/../R.framework/Resources"
+          # Find R_HOME dynamically (handles ARM64 vs Intel)
+          R_HOME=$(find "$SCRIPT_DIR/../R.framework/Versions" -maxdepth 2 -type d -name "Resources" | head -1)
+          if [ -z "$R_HOME" ]; then
+            R_HOME="$SCRIPT_DIR/../R.framework/Resources"
+          fi
           export R_HOME
           export DYLD_LIBRARY_PATH="$R_HOME/lib:$DYLD_LIBRARY_PATH"
           exec "$R_HOME/bin/Rscript" "$@"
           EOF
           chmod +x "$OUTPUT_DIR/bin/Rscript"
 
-          # Copy installed packages from R_LIBS_USER to R portable
+          # Ensure Resources symlink exists
+          if [ ! -e "$OUTPUT_DIR/R.framework/Resources" ]; then
+            ACTUAL_RESOURCES=$(find "$OUTPUT_DIR/R.framework/Versions" -maxdepth 2 -type d -name "Resources" | head -1)
+            if [ -n "$ACTUAL_RESOURCES" ]; then
+              ln -sf "$(basename $(dirname $ACTUAL_RESOURCES))/Resources" "$OUTPUT_DIR/R.framework/Resources"
+            fi
+          fi
+
+          # Find actual library path and copy installed packages
+          ACTUAL_LIB=$(find "$OUTPUT_DIR/R.framework/Versions" -maxdepth 3 -type d -name "library" | head -1)
+          if [ -z "$ACTUAL_LIB" ]; then
+            ACTUAL_LIB="$OUTPUT_DIR/R.framework/Resources/library"
+          fi
+          echo "Actual library path: $ACTUAL_LIB"
+
           if [ -d "$R_LIBS_USER" ]; then
-            echo "Copying packages from $R_LIBS_USER to $OUTPUT_DIR/R.framework/Resources/library"
-            cp -R "$R_LIBS_USER"/* "$OUTPUT_DIR/R.framework/Resources/library/" 2>/dev/null || true
+            echo "Copying packages from $R_LIBS_USER to $ACTUAL_LIB"
+            cp -R "$R_LIBS_USER"/* "$ACTUAL_LIB/" 2>/dev/null || true
           fi
 
           echo "R Portable prepared at $OUTPUT_DIR"
-          ls -la "$OUTPUT_DIR/R.framework/Resources/library" | head -30
+          ls -la "$ACTUAL_LIB" | head -30
 
       - name: Install rchic package from source
         run: |
-          R CMD INSTALL --library=electron/R-portable-mac/R.framework/Resources/library .
+          # Find actual library path
+          LIB_PATH=$(find electron/R-portable-mac/R.framework/Versions -maxdepth 3 -type d -name "library" | head -1)
+          if [ -z "$LIB_PATH" ]; then
+            LIB_PATH="electron/R-portable-mac/R.framework/Resources/library"
+          fi
+          echo "Installing rchic to: $LIB_PATH"
+          R CMD INSTALL --library="$LIB_PATH" .
 
       - name: Verify R installation
         run: |
-          electron/R-portable-mac/bin/Rscript -e "library(plumber); cat('plumber OK\n'); library(rchic); cat('rchic OK\n')"
+          # Find the actual library path (handles ARM64 vs Intel)
+          LIB_PATH=$(find electron/R-portable-mac/R.framework -type d -name "library" | head -1)
+          echo "Using library path: $LIB_PATH"
+          electron/R-portable-mac/bin/Rscript -e ".libPaths('$LIB_PATH'); library(plumber); cat('plumber OK\n'); library(rchic); cat('rchic OK\n')"
 
       - name: Install npm dependencies
         run: |

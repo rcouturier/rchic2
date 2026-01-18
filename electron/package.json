@@ -5,7 +5,11 @@
   "main": "src/main.js",
   "author": "Raphael Couturier <raphael.couturier@univ-fcomte.fr>",
   "license": "GPL-3.0",
-  "homepage": "https://github.com/rchic/Rchic/",
+  "homepage": "https://github.com/rcouturier/rchic2",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rcouturier/rchic2.git"
+  },
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
