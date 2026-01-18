@@ -70,8 +70,14 @@ jobs:
           chmod +x "$OUTPUT_DIR/bin/R" 2>/dev/null || true
           chmod +x "$OUTPUT_DIR/bin/Rscript" 2>/dev/null || true
 
+          # Copy installed packages from R_LIBS_USER to R portable
+          if [ -d "$R_LIBS_USER" ]; then
+            echo "Copying packages from $R_LIBS_USER to $OUTPUT_DIR/library"
+            cp -R "$R_LIBS_USER"/* "$OUTPUT_DIR/library/" 2>/dev/null || true
+          fi
+
           echo "R Portable prepared at $OUTPUT_DIR"
-          ls -la "$OUTPUT_DIR"
+          ls -la "$OUTPUT_DIR/library" | head -30
 
       - name: Install rchic package from source
         run: |
@@ -180,8 +186,14 @@ jobs:
           EOF
           chmod +x "$OUTPUT_DIR/bin/Rscript"
 
+          # Copy installed packages from R_LIBS_USER to R portable
+          if [ -d "$R_LIBS_USER" ]; then
+            echo "Copying packages from $R_LIBS_USER to $OUTPUT_DIR/R.framework/Resources/library"
+            cp -R "$R_LIBS_USER"/* "$OUTPUT_DIR/R.framework/Resources/library/" 2>/dev/null || true
+          fi
+
           echo "R Portable prepared at $OUTPUT_DIR"
-          ls -la "$OUTPUT_DIR"
+          ls -la "$OUTPUT_DIR/R.framework/Resources/library" | head -30
 
       - name: Install rchic package from source
         run: |
@@ -291,8 +303,15 @@ jobs:
           New-Item -ItemType Directory -Path $OUTPUT_DIR -Force | Out-Null
           Copy-Item -Path "$R_HOME\*" -Destination $OUTPUT_DIR -Recurse -Force
 
+          # Copy installed packages from R_LIBS_USER to R portable
+          $R_LIBS_USER = $env:R_LIBS_USER
+          if ($R_LIBS_USER -and (Test-Path $R_LIBS_USER)) {
+            Write-Host "Copying packages from $R_LIBS_USER to $OUTPUT_DIR\library"
+            Copy-Item -Path "$R_LIBS_USER\*" -Destination "$OUTPUT_DIR\library" -Recurse -Force -ErrorAction SilentlyContinue
+          }
+
           Write-Host "R Portable prepared at $OUTPUT_DIR"
-          Get-ChildItem $OUTPUT_DIR
+          Get-ChildItem "$OUTPUT_DIR\library" | Select-Object -First 30
 
       - name: Install rchic package from source
         shell: cmd
