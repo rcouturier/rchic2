@@ -94,31 +94,14 @@ jobs:
           Write-Host "R Portable prepared successfully!"
           Get-ChildItem $OUTPUT_DIR
 
-      - name: Install rchic package
+      - name: Install rchic package from source
         shell: pwsh
         run: |
-          $rscript = "electron/R-portable-win/bin/Rscript.exe"
-          if (!(Test-Path $rscript)) {
-            $rscript = "electron/R-portable-win/bin/x64/Rscript.exe"
-          }
-
-          $libPath = "electron/R-portable-win/library"
-          $rchicPath = "electron/binaries/win/rchic_0.28.zip"
-
-          # Verify source file exists
-          if (!(Test-Path $rchicPath)) {
-            Write-Host "ERROR: rchic binary not found at $rchicPath"
-            Get-ChildItem "electron/binaries" -Recurse
-            exit 1
-          }
-
-          Write-Host "Installing rchic from $rchicPath..."
-          Write-Host "Library path: $libPath"
-
-          # Install with verbose output
-          & $rscript -e "install.packages('$($rchicPath -replace '\\', '/')', repos = NULL, type = 'win.binary', lib = '$($libPath -replace '\\', '/')', verbose = TRUE)"
+          # Install rchic from source
+          R CMD INSTALL --library=electron/R-portable-win/library .
 
           # Verify installation
+          $libPath = "electron/R-portable-win/library"
           if (!(Test-Path "$libPath/rchic")) {
             Write-Host "ERROR: rchic package not found in library after installation!"
             Write-Host "Library contents:"

@@ -78,11 +78,9 @@ jobs:
           WRAPPER
           chmod +x R-portable-mac/bin/R
 
-      - name: Install rchic package
+      - name: Install rchic package from source
         run: |
-          cd electron
-          LIB_PATH="R-portable-mac/R.framework/Resources/library"
-          ./R-portable-mac/bin/Rscript -e "install.packages('binaries/mac/rchic_0.28.tgz', repos = NULL, type = 'source', lib = '$LIB_PATH')"
+          R CMD INSTALL --library=electron/R-portable-mac/R.framework/Resources/library .
 
       - name: Verify R installation
         run: |
