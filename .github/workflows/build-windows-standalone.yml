@@ -35,8 +35,10 @@ jobs:
                              'httpuv', 'webutils', 'swagger', 'magrittr', 'crayon',
                              'ellipsis', 'lifecycle', 'rlang', 'R6', 'stringi',
                              'digest', 'globals', 'listenv', 'parallelly', 'Rcpp',
-                             'mime', 'sodium', 'cli', 'fastmap', 'curl', 'otel'),
+                             'mime', 'sodium', 'cli', 'fastmap', 'curl',
+                             'stringr', 'tcltk2', 'BiocManager'),
                            repos = 'https://cloud.r-project.org')
+          BiocManager::install('Rgraphviz', ask = FALSE, update = FALSE)
         shell: Rscript {0}
 
       - name: Prepare R Portable for Windows
@@ -95,12 +97,12 @@ jobs:
           Get-ChildItem $OUTPUT_DIR
 
       - name: Install rchic package from source
+        shell: cmd
+        run: R CMD INSTALL --library=electron/R-portable-win/library .
+
+      - name: Verify rchic installation
         shell: pwsh
         run: |
-          # Install rchic from source
-          R CMD INSTALL --library=electron/R-portable-win/library .
-
-          # Verify installation
           $libPath = "electron/R-portable-win/library"
           if (!(Test-Path "$libPath/rchic")) {
             Write-Host "ERROR: rchic package not found in library after installation!"

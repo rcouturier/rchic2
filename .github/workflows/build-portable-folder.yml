@@ -38,16 +38,18 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libsodium-dev libicu-dev
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libsodium-dev libicu-dev graphviz libgraphviz-dev
 
       - name: Install R packages
         run: |
           install.packages(c('plumber', 'jsonlite', 'promises', 'future', 'later',
                              'httpuv', 'webutils', 'swagger', 'magrittr', 'crayon',
                              'ellipsis', 'lifecycle', 'rlang', 'R6', 'stringi',
-                             'sodium', 'digest', 'globals', 'listenv', 'parallelly', 'Rcpp'),
+                             'sodium', 'digest', 'globals', 'listenv', 'parallelly', 'Rcpp',
+                             'stringr', 'tcltk2', 'BiocManager'),
                            repos = 'https://cloud.r-project.org',
                            dependencies = c('Depends', 'Imports', 'LinkingTo'))
+          BiocManager::install('Rgraphviz', ask = FALSE, update = FALSE)
         shell: Rscript {0}
 
       - name: Prepare R Portable for Linux
@@ -131,9 +133,11 @@ jobs:
           install.packages(c('plumber', 'jsonlite', 'promises', 'future', 'later',
                              'httpuv', 'webutils', 'swagger', 'magrittr', 'crayon',
                              'ellipsis', 'lifecycle', 'rlang', 'R6', 'stringi',
-                             'sodium', 'digest', 'globals', 'listenv', 'parallelly', 'Rcpp'),
+                             'sodium', 'digest', 'globals', 'listenv', 'parallelly', 'Rcpp',
+                             'stringr', 'tcltk2', 'BiocManager'),
                            repos = 'https://cloud.r-project.org',
                            dependencies = c('Depends', 'Imports', 'LinkingTo'))
+          BiocManager::install('Rgraphviz', ask = FALSE, update = FALSE)
         shell: Rscript {0}
 
       - name: Prepare R Portable for macOS
@@ -245,9 +249,11 @@ jobs:
           install.packages(c('plumber', 'jsonlite', 'promises', 'future', 'later',
                              'httpuv', 'webutils', 'swagger', 'magrittr', 'crayon',
                              'ellipsis', 'lifecycle', 'rlang', 'R6', 'stringi',
-                             'sodium', 'digest', 'globals', 'listenv', 'parallelly', 'Rcpp'),
+                             'sodium', 'digest', 'globals', 'listenv', 'parallelly', 'Rcpp',
+                             'stringr', 'tcltk2', 'BiocManager', 'otel'),
                            repos = 'https://cloud.r-project.org',
                            dependencies = c('Depends', 'Imports', 'LinkingTo'))
+          BiocManager::install('Rgraphviz', ask = FALSE, update = FALSE)
         shell: Rscript {0}
 
       - name: Prepare R Portable for Windows
@@ -289,15 +295,8 @@ jobs:
           Get-ChildItem $OUTPUT_DIR
 
       - name: Install rchic package from source
-        shell: pwsh
-        run: |
-          $rscript = "electron/R-portable-win/bin/Rscript.exe"
-          if (!(Test-Path $rscript)) {
-            $rscript = "electron/R-portable-win/bin/x64/Rscript.exe"
-          }
-
-          # Install rchic from source
-          R CMD INSTALL --library=electron/R-portable-win/library .
+        shell: cmd
+        run: R CMD INSTALL --library=electron/R-portable-win/library .
 
       - name: Verify R installation
         shell: pwsh
