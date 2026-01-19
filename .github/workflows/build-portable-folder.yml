@@ -120,10 +120,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: macos-13
+          - os: macos-15-intel
             arch: x64
             arch-name: Intel
-          - os: macos-14
+          - os: macos-latest
             arch: arm64
             arch-name: ARM
 
