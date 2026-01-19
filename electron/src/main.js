@@ -74,13 +74,39 @@ function getRPath() {
   // Try bundled R first (production)
   if (!isDev) {
     const rPortablePath = getResourcePath('R-portable');
-    const bundledR = platform === 'win32'
-      ? path.join(rPortablePath, 'bin', 'Rscript.exe')
-      : path.join(rPortablePath, 'bin', 'Rscript');
 
-    if (fs.existsSync(bundledR)) {
-      log.info('Using bundled R');
-      return bundledR;
+    if (platform === 'win32') {
+      const bundledR = path.join(rPortablePath, 'bin', 'Rscript.exe');
+      if (fs.existsSync(bundledR)) {
+        log.info('Using bundled R');
+        return bundledR;
+      }
+    } else if (platform === 'darwin') {
+      // macOS: look for Rscript inside R.framework
+      const rFrameworkBin = path.join(rPortablePath, 'R.framework', 'Resources', 'bin', 'Rscript');
+      if (fs.existsSync(rFrameworkBin)) {
+        log.info('Using bundled R from R.framework');
+        return rFrameworkBin;
+      }
+      // Also try Versions path
+      const versionsPath = path.join(rPortablePath, 'R.framework', 'Versions');
+      if (fs.existsSync(versionsPath)) {
+        const versions = fs.readdirSync(versionsPath).filter(v => !v.startsWith('.'));
+        for (const ver of versions) {
+          const rscript = path.join(versionsPath, ver, 'Resources', 'bin', 'Rscript');
+          if (fs.existsSync(rscript)) {
+            log.info(`Using bundled R from R.framework/Versions/${ver}`);
+            return rscript;
+          }
+        }
+      }
+    } else {
+      // Linux
+      const bundledR = path.join(rPortablePath, 'bin', 'Rscript');
+      if (fs.existsSync(bundledR)) {
+        log.info('Using bundled R');
+        return bundledR;
+      }
     }
     log.info('Bundled R not found, falling back to system R');
   }
@@ -364,7 +390,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
+  if (app.isReady() && BrowserWindow.getAllWindows().length === 0 && serverPort) {
     createWindow();
   }
 });
