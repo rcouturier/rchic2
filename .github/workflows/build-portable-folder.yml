@@ -251,23 +251,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create ZIP archive
+      - name: Find .app bundle
+        id: find-app
         run: |
-          cd electron/dist-portable-folder
-          # Find the directory containing the .app bundle (mac or mac-arm64)
-          APP_DIR=$(find . -maxdepth 2 -name "*.app" -type d | head -1 | xargs dirname)
-          if [ -n "$APP_DIR" ] && [ -d "$APP_DIR" ]; then
-            cd "$APP_DIR" && zip -r ../Rchic2-Portable-macOS-${{ matrix.arch-name }}.zip *.app
-          else
-            echo "ERROR: No .app bundle found"
-            exit 1
-          fi
+          APP_PATH=$(find electron/dist-portable-folder -maxdepth 2 -name "*.app" -type d | head -1)
+          echo "app_path=$APP_PATH" >> $GITHUB_OUTPUT
+          echo "Found app at: $APP_PATH"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: Rchic2-Portable-macOS-${{ matrix.arch-name }}
-          path: electron/dist-portable-folder/Rchic2-Portable-macOS-${{ matrix.arch-name }}.zip
+          path: ${{ steps.find-app.outputs.app_path }}
           retention-days: 30
 
   # ============================================================================
