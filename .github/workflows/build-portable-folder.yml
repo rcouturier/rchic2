@@ -251,18 +251,20 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Find .app bundle
-        id: find-app
+      - name: Prepare .app for upload
         run: |
+          # Find the .app bundle
           APP_PATH=$(find electron/dist-portable-folder -maxdepth 2 -name "*.app" -type d | head -1)
-          echo "app_path=$APP_PATH" >> $GITHUB_OUTPUT
           echo "Found app at: $APP_PATH"
+          # Create upload directory and move .app into it
+          mkdir -p electron/dist-portable-folder/upload
+          mv "$APP_PATH" electron/dist-portable-folder/upload/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: Rchic2-Portable-macOS-${{ matrix.arch-name }}
-          path: ${{ steps.find-app.outputs.app_path }}
+          path: electron/dist-portable-folder/upload/
           retention-days: 30
 
   # ============================================================================
