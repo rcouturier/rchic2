@@ -1,6 +1,6 @@
 {
-  "appId": "fr.univ-fcomte.rchic.standalone",
-  "productName": "RCHIC-Standalone",
+  "appId": "rchic2",
+  "productName": "Rchic2",
   "forceCodeSigning": false,
   "directories": {
     "output": "dist-portable-folder",
@@ -29,7 +29,7 @@
     "target": ["dir"],
     "icon": "assets/icon.ico",
     "signAndEditExecutable": false,
-    "artifactName": "RCHIC-Portable-${version}-win",
+    "artifactName": "Rchic2-${version}-win",
     "extraResources": [
       {
         "from": "R-portable-win",
@@ -42,7 +42,7 @@
     "target": ["dir"],
     "icon": "assets/icon.icns",
     "category": "public.app-category.education",
-    "artifactName": "RCHIC-Portable-${version}-mac",
+    "artifactName": "Rchic2-${version}-mac",
     "hardenedRuntime": false,
     "gatekeeperAssess": false,
     "extraResources": [
@@ -57,7 +57,7 @@
     "target": ["dir"],
     "icon": "assets/icon.png",
     "category": "Education",
-    "artifactName": "RCHIC-Portable-${version}-linux",
+    "artifactName": "Rchic2-${version}-linux",
     "extraResources": [
       {
         "from": "R-portable-linux",

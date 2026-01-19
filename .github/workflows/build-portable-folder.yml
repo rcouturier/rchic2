@@ -103,20 +103,29 @@ jobs:
       - name: Create ZIP archive
         run: |
           cd electron/dist-portable-folder
-          zip -r RCHIC-Portable-Linux.zip linux-unpacked
+          zip -r Rchic2-Portable-Linux.zip linux-unpacked
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: RCHIC-Portable-Linux
-          path: electron/dist-portable-folder/RCHIC-Portable-Linux.zip
+          name: Rchic2-Portable-Linux
+          path: electron/dist-portable-folder/Rchic2-Portable-Linux.zip
           retention-days: 30
 
   # ============================================================================
-  # macOS Build
+  # macOS Build (Intel + ARM)
   # ============================================================================
   build-macos:
-    runs-on: macos-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-13
+            arch: x64
+            arch-name: Intel
+          - os: macos-14
+            arch: arm64
+            arch-name: ARM
 
     steps:
       - name: Checkout code
@@ -245,20 +254,20 @@ jobs:
       - name: Create ZIP archive
         run: |
           cd electron/dist-portable-folder
-          # macOS creates a .app bundle in mac/ directory
+          # macOS creates a .app bundle in mac/ or mac-arm64/ directory
           if [ -d "mac" ]; then
-            zip -r RCHIC-Portable-macOS.zip mac
+            zip -r Rchic2-Portable-macOS-${{ matrix.arch-name }}.zip mac
           elif [ -d "mac-arm64" ]; then
-            zip -r RCHIC-Portable-macOS.zip mac-arm64
+            zip -r Rchic2-Portable-macOS-${{ matrix.arch-name }}.zip mac-arm64
           else
-            zip -r RCHIC-Portable-macOS.zip .
+            zip -r Rchic2-Portable-macOS-${{ matrix.arch-name }}.zip .
           fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: RCHIC-Portable-macOS
-          path: electron/dist-portable-folder/RCHIC-Portable-macOS.zip
+          name: Rchic2-Portable-macOS-${{ matrix.arch-name }}
+          path: electron/dist-portable-folder/Rchic2-Portable-macOS-${{ matrix.arch-name }}.zip
           retention-days: 30
 
   # ============================================================================
@@ -369,13 +378,13 @@ jobs:
         shell: pwsh
         run: |
           cd electron/dist-portable-folder
-          Compress-Archive -Path win-unpacked -DestinationPath RCHIC-Portable-Windows.zip
+          Compress-Archive -Path win-unpacked -DestinationPath Rchic2-Portable-Windows.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: RCHIC-Portable-Windows
-          path: electron/dist-portable-folder/RCHIC-Portable-Windows.zip
+          name: Rchic2-Portable-Windows
+          path: electron/dist-portable-folder/Rchic2-Portable-Windows.zip
           retention-days: 30
 
   # ============================================================================
@@ -400,29 +409,31 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          name: RCHIC Portable ${{ github.ref_name }}
+          name: Rchic2 Portable ${{ github.ref_name }}
           body: |
-            ## RCHIC Portable Release
+            ## Rchic2 Portable Release
 
             Download the ZIP file for your platform, extract it, and run the application directly.
             No installation required - all dependencies (including R) are bundled.
 
             ### Downloads
-            - **Linux**: `RCHIC-Portable-Linux.zip`
-            - **macOS**: `RCHIC-Portable-macOS.zip`
-            - **Windows**: `RCHIC-Portable-Windows.zip`
+            - **Linux**: `Rchic2-Portable-Linux.zip`
+            - **macOS Intel**: `Rchic2-Portable-macOS-Intel.zip`
+            - **macOS ARM (Apple Silicon)**: `Rchic2-Portable-macOS-ARM.zip`
+            - **Windows**: `Rchic2-Portable-Windows.zip`
 
             ### How to use
             1. Download the ZIP for your platform
             2. Extract the archive
             3. Run the executable:
-               - Linux: `./rchic-desktop`
-               - macOS: Open `RCHIC-Standalone.app`
-               - Windows: Run `RCHIC-Standalone.exe`
+               - Linux: `./Rchic2`
+               - macOS: Open `Rchic2.app`
+               - Windows: Run `Rchic2.exe`
           files: |
-            artifacts/RCHIC-Portable-Linux/RCHIC-Portable-Linux.zip
-            artifacts/RCHIC-Portable-macOS/RCHIC-Portable-macOS.zip
-            artifacts/RCHIC-Portable-Windows/RCHIC-Portable-Windows.zip
+            artifacts/Rchic2-Portable-Linux/Rchic2-Portable-Linux.zip
+            artifacts/Rchic2-Portable-macOS-Intel/Rchic2-Portable-macOS-Intel.zip
+            artifacts/Rchic2-Portable-macOS-ARM/Rchic2-Portable-macOS-ARM.zip
+            artifacts/Rchic2-Portable-Windows/Rchic2-Portable-Windows.zip
           draft: false
           prerelease: false
         env:
