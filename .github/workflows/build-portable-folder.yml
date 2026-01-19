@@ -254,13 +254,13 @@ jobs:
       - name: Create ZIP archive
         run: |
           cd electron/dist-portable-folder
-          # macOS creates a .app bundle in mac/ or mac-arm64/ directory
-          if [ -d "mac" ]; then
-            zip -r Rchic2-Portable-macOS-${{ matrix.arch-name }}.zip mac
-          elif [ -d "mac-arm64" ]; then
-            zip -r Rchic2-Portable-macOS-${{ matrix.arch-name }}.zip mac-arm64
+          # Find the directory containing the .app bundle (mac or mac-arm64)
+          APP_DIR=$(find . -maxdepth 2 -name "*.app" -type d | head -1 | xargs dirname)
+          if [ -n "$APP_DIR" ] && [ -d "$APP_DIR" ]; then
+            cd "$APP_DIR" && zip -r ../Rchic2-Portable-macOS-${{ matrix.arch-name }}.zip *.app
           else
-            zip -r Rchic2-Portable-macOS-${{ matrix.arch-name }}.zip .
+            echo "ERROR: No .app bundle found"
+            exit 1
           fi
 
       - name: Upload artifact
