@@ -179,24 +179,25 @@ jobs:
           # Create bin directory with wrapper scripts
           mkdir -p "$OUTPUT_DIR/bin"
 
-          cat > "$OUTPUT_DIR/bin/Rscript" << 'WRAPPER_EOF'
-#!/bin/bash
-SOURCE="${BASH_SOURCE[0]}"
-while [ -h "$SOURCE" ]; do
-  DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
-  SOURCE="$(readlink "$SOURCE")"
-  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
-done
-SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
-# Find R_HOME dynamically (handles ARM64 vs Intel)
-R_HOME=$(find "$SCRIPT_DIR/../R.framework/Versions" -maxdepth 2 -type d -name "Resources" | head -1)
-if [ -z "$R_HOME" ]; then
-  R_HOME="$SCRIPT_DIR/../R.framework/Resources"
-fi
-export R_HOME
-export DYLD_LIBRARY_PATH="$R_HOME/lib:$DYLD_LIBRARY_PATH"
-exec "$R_HOME/bin/Rscript" "$@"
-WRAPPER_EOF
+          # Create Rscript wrapper using echo to avoid YAML heredoc issues
+          {
+            echo '#!/bin/bash'
+            echo 'SOURCE="${BASH_SOURCE[0]}"'
+            echo 'while [ -h "$SOURCE" ]; do'
+            echo '  DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"'
+            echo '  SOURCE="$(readlink "$SOURCE")"'
+            echo '  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"'
+            echo 'done'
+            echo 'SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"'
+            echo '# Find R_HOME dynamically (handles ARM64 vs Intel)'
+            echo 'R_HOME=$(find "$SCRIPT_DIR/../R.framework/Versions" -maxdepth 2 -type d -name "Resources" | head -1)'
+            echo 'if [ -z "$R_HOME" ]; then'
+            echo '  R_HOME="$SCRIPT_DIR/../R.framework/Resources"'
+            echo 'fi'
+            echo 'export R_HOME'
+            echo 'export DYLD_LIBRARY_PATH="$R_HOME/lib:$DYLD_LIBRARY_PATH"'
+            echo 'exec "$R_HOME/bin/Rscript" "$@"'
+          } > "$OUTPUT_DIR/bin/Rscript"
           chmod +x "$OUTPUT_DIR/bin/Rscript"
 
           # Ensure Resources symlink exists
