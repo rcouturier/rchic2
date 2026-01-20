@@ -82,7 +82,13 @@ function getRPath() {
         return bundledR;
       }
     } else if (platform === 'darwin') {
-      // macOS: look for Rscript inside R.framework
+      // macOS: first try the wrapper script in bin/ (handles path relocation)
+      const wrapperScript = path.join(rPortablePath, 'bin', 'Rscript');
+      if (fs.existsSync(wrapperScript)) {
+        log.info('Using bundled R wrapper script');
+        return wrapperScript;
+      }
+      // Fallback: look for Rscript inside R.framework
       const rFrameworkBin = path.join(rPortablePath, 'R.framework', 'Resources', 'bin', 'Rscript');
       if (fs.existsSync(rFrameworkBin)) {
         log.info('Using bundled R from R.framework');
