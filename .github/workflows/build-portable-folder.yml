@@ -180,8 +180,14 @@ jobs:
           mkdir -p "$OUTPUT_DIR/bin"
 
           # Create Rscript wrapper using echo to avoid YAML heredoc issues
+          # IMPORTANT: On macOS, bin/Rscript is a binary with hardcoded paths
+          # We use the R shell script (which we patch) with --slave --no-restore instead
           {
             echo '#!/bin/bash'
+            echo '# Rscript wrapper for portable R on macOS'
+            echo '# Uses R --slave --no-restore instead of the Rscript binary'
+            echo '# because the Rscript binary has hardcoded paths that break with App Translocation'
+            echo ''
             echo '# Get the directory of this script (resolving symlinks)'
             echo 'SOURCE="${BASH_SOURCE[0]}"'
             echo 'while [ -h "$SOURCE" ]; do'
@@ -191,14 +197,13 @@ jobs:
             echo 'done'
             echo 'SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"'
             echo ''
-            echo '# Use R_HOME if already set and valid, otherwise find it'
+            echo '# Find R_HOME dynamically'
             echo 'if [ -z "$R_HOME" ] || [ ! -d "$R_HOME/bin" ]; then'
-            echo '  # Find R_HOME dynamically - try multiple locations'
             echo '  for CANDIDATE in \'
             echo '    "$SCRIPT_DIR/../R.framework/Resources" \'
             echo '    $(find "$SCRIPT_DIR/../R.framework/Versions" -maxdepth 2 -type d -name "Resources" 2>/dev/null) \'
             echo '  ; do'
-            echo '    if [ -n "$CANDIDATE" ] && [ -x "$CANDIDATE/bin/Rscript" ]; then'
+            echo '    if [ -n "$CANDIDATE" ] && [ -f "$CANDIDATE/bin/R" ]; then'
             echo '      R_HOME="$CANDIDATE"'
             echo '      break'
             echo '    fi'
@@ -206,16 +211,16 @@ jobs:
             echo 'fi'
             echo ''
             echo '# Verify R_HOME is valid'
-            echo 'if [ -z "$R_HOME" ] || [ ! -x "$R_HOME/bin/Rscript" ]; then'
-            echo '  echo "ERROR: Cannot find Rscript binary. R_HOME=$R_HOME" >&2'
-            echo '  echo "SCRIPT_DIR=$SCRIPT_DIR" >&2'
-            echo '  ls -la "$SCRIPT_DIR/../R.framework/" >&2 2>/dev/null || true'
+            echo 'if [ -z "$R_HOME" ] || [ ! -f "$R_HOME/bin/R" ]; then'
+            echo '  echo "ERROR: Cannot find R. R_HOME=$R_HOME" >&2'
             echo '  exit 1'
             echo 'fi'
             echo ''
             echo 'export R_HOME'
             echo 'export DYLD_LIBRARY_PATH="$R_HOME/lib:${DYLD_LIBRARY_PATH:-}"'
-            echo 'exec "$R_HOME/bin/Rscript" "$@"'
+            echo ''
+            echo '# Use R with Rscript-equivalent flags'
+            echo 'exec "$R_HOME/bin/R" --slave --no-restore "$@"'
           } > "$OUTPUT_DIR/bin/Rscript"
           chmod +x "$OUTPUT_DIR/bin/Rscript"
 
