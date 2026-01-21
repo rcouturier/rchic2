@@ -247,6 +247,77 @@ jobs:
           find "$OUTPUT_DIR/R.framework" -name "Rscript" -type f -exec chmod +x {} \;
           find "$OUTPUT_DIR/R.framework" -name "R" -type f -exec chmod +x {} \;
 
+          # CRITICAL: Patch R and Rscript scripts in R.framework to use dynamic paths
+          # These scripts have hardcoded paths like /Library/Frameworks/R.framework/Resources
+          echo "Patching R scripts to use dynamic paths..."
+
+          # Find the actual Resources directory
+          RESOURCES_DIR=$(find "$OUTPUT_DIR/R.framework/Versions" -maxdepth 2 -type d -name "Resources" | head -1)
+          if [ -z "$RESOURCES_DIR" ]; then
+            RESOURCES_DIR="$OUTPUT_DIR/R.framework/Resources"
+          fi
+          echo "Resources directory: $RESOURCES_DIR"
+
+          # Patch the R script
+          if [ -f "$RESOURCES_DIR/bin/R" ]; then
+            echo "Patching $RESOURCES_DIR/bin/R"
+            # Show current R_HOME_DIR line
+            grep "R_HOME_DIR=" "$RESOURCES_DIR/bin/R" | head -1 || true
+
+            # Create a patched version that detects its location dynamically
+            {
+              echo '#!/bin/bash'
+              echo '# Patched to use dynamic path detection'
+              echo 'if test -n "${R_HOME}"; then'
+              echo '  R_HOME_DIR="${R_HOME}"'
+              echo 'else'
+              echo '  # Detect script location dynamically'
+              echo '  SOURCE="${BASH_SOURCE[0]}"'
+              echo '  while [ -h "$SOURCE" ]; do'
+              echo '    DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"'
+              echo '    SOURCE="$(readlink "$SOURCE")"'
+              echo '    [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"'
+              echo '  done'
+              echo '  SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"'
+              echo '  R_HOME_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"'
+              echo 'fi'
+              echo ''
+              # Copy the rest of the original script, skipping the R_HOME_DIR assignment
+              tail -n +3 "$RESOURCES_DIR/bin/R" | grep -v "^R_HOME_DIR=" | grep -v "^# Shell wrapper"
+            } > "$RESOURCES_DIR/bin/R.patched"
+            mv "$RESOURCES_DIR/bin/R.patched" "$RESOURCES_DIR/bin/R"
+            chmod +x "$RESOURCES_DIR/bin/R"
+          fi
+
+          # Patch the Rscript script
+          if [ -f "$RESOURCES_DIR/bin/Rscript" ]; then
+            echo "Patching $RESOURCES_DIR/bin/Rscript"
+            grep "R_HOME_DIR=" "$RESOURCES_DIR/bin/Rscript" | head -1 || true
+
+            {
+              echo '#!/bin/bash'
+              echo '# Patched to use dynamic path detection'
+              echo 'if test -n "${R_HOME}"; then'
+              echo '  R_HOME_DIR="${R_HOME}"'
+              echo 'else'
+              echo '  SOURCE="${BASH_SOURCE[0]}"'
+              echo '  while [ -h "$SOURCE" ]; do'
+              echo '    DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"'
+              echo '    SOURCE="$(readlink "$SOURCE")"'
+              echo '    [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"'
+              echo '  done'
+              echo '  SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"'
+              echo '  R_HOME_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"'
+              echo 'fi'
+              echo ''
+              tail -n +3 "$RESOURCES_DIR/bin/Rscript" | grep -v "^R_HOME_DIR=" | grep -v "^# Shell wrapper"
+            } > "$RESOURCES_DIR/bin/Rscript.patched"
+            mv "$RESOURCES_DIR/bin/Rscript.patched" "$RESOURCES_DIR/bin/Rscript"
+            chmod +x "$RESOURCES_DIR/bin/Rscript"
+          fi
+
+          echo "Scripts patched successfully"
+
           # Find actual library path and copy installed packages
           ACTUAL_LIB=$(find "$OUTPUT_DIR/R.framework/Versions" -maxdepth 3 -type d -name "library" | head -1)
           if [ -z "$ACTUAL_LIB" ]; then
