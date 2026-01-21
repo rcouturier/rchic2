@@ -82,17 +82,15 @@ function getRPath() {
         return bundledR;
       }
     } else if (platform === 'darwin') {
-      // macOS: Try direct path to R.framework first (more reliable than wrapper)
-      // The wrapper can have issues with App Translocation on macOS
-
-      // Try R.framework/Resources/bin/Rscript (symlink path)
-      const rFrameworkBin = path.join(rPortablePath, 'R.framework', 'Resources', 'bin', 'Rscript');
-      if (fs.existsSync(rFrameworkBin)) {
-        log.info('Using bundled R from R.framework/Resources');
-        return rFrameworkBin;
+      // macOS: Use the wrapper script in bin/ first - it handles dynamic path detection
+      // This is more reliable with App Translocation than using R.framework directly
+      const wrapperScript = path.join(rPortablePath, 'bin', 'Rscript');
+      if (fs.existsSync(wrapperScript)) {
+        log.info('Using bundled R wrapper script');
+        return wrapperScript;
       }
 
-      // Try Versions path (handles different R versions for Intel/ARM)
+      // Fallback: Try Versions path (handles different R versions for Intel/ARM)
       const versionsPath = path.join(rPortablePath, 'R.framework', 'Versions');
       if (fs.existsSync(versionsPath)) {
         const versions = fs.readdirSync(versionsPath).filter(v => !v.startsWith('.') && v !== 'Current');
@@ -100,16 +98,23 @@ function getRPath() {
           const rscript = path.join(versionsPath, ver, 'Resources', 'bin', 'Rscript');
           if (fs.existsSync(rscript)) {
             log.info(`Using bundled R from R.framework/Versions/${ver}`);
+            // Verify the exec binary exists
+            const execR = path.join(versionsPath, ver, 'Resources', 'bin', 'exec', 'R');
+            if (fs.existsSync(execR)) {
+              log.info(`exec/R binary found at: ${execR}`);
+            } else {
+              log.warn(`exec/R binary NOT found at: ${execR}`);
+            }
             return rscript;
           }
         }
       }
 
-      // Fallback: try the wrapper script in bin/
-      const wrapperScript = path.join(rPortablePath, 'bin', 'Rscript');
-      if (fs.existsSync(wrapperScript)) {
-        log.info('Using bundled R wrapper script (fallback)');
-        return wrapperScript;
+      // Last fallback: Try R.framework/Resources/bin/Rscript (symlink path)
+      const rFrameworkBin = path.join(rPortablePath, 'R.framework', 'Resources', 'bin', 'Rscript');
+      if (fs.existsSync(rFrameworkBin)) {
+        log.info('Using bundled R from R.framework/Resources');
+        return rFrameworkBin;
       }
 
       // Debug: list what's in R.framework
@@ -120,6 +125,20 @@ function getRPath() {
           log.info(`R.framework contents: ${fs.readdirSync(rFrameworkPath).join(', ')}`);
           if (fs.existsSync(versionsPath)) {
             log.info(`Versions contents: ${fs.readdirSync(versionsPath).join(', ')}`);
+            // List contents of each version
+            const versions = fs.readdirSync(versionsPath).filter(v => !v.startsWith('.'));
+            for (const ver of versions) {
+              const verPath = path.join(versionsPath, ver);
+              try {
+                log.info(`  ${ver} contents: ${fs.readdirSync(verPath).join(', ')}`);
+                const binPath = path.join(verPath, 'Resources', 'bin');
+                if (fs.existsSync(binPath)) {
+                  log.info(`    bin contents: ${fs.readdirSync(binPath).join(', ')}`);
+                }
+              } catch (e) {
+                log.warn(`  Could not list ${ver}: ${e.message}`);
+              }
+            }
           }
         } else {
           log.warn('R.framework does not exist!');

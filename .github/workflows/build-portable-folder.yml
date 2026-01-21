@@ -219,6 +219,41 @@ jobs:
           } > "$OUTPUT_DIR/bin/Rscript"
           chmod +x "$OUTPUT_DIR/bin/Rscript"
 
+          # CRITICAL: Convert all absolute symlinks in R.framework to relative symlinks
+          # This is essential for App Translocation to work on macOS
+          echo "Converting absolute symlinks to relative in R.framework..."
+          find "$OUTPUT_DIR/R.framework" -type l | while read -r link; do
+            target=$(readlink "$link")
+            # Check if the symlink is absolute
+            if [[ "$target" == /* ]]; then
+              # Check if the target exists within our R.framework
+              link_dir=$(dirname "$link")
+              # Try to find the target within our copied framework
+              target_basename=$(basename "$target")
+              target_dirname=$(dirname "$target")
+
+              # If target contains R.framework, try to make it relative
+              if [[ "$target" == *"R.framework"* ]]; then
+                # Extract the part after R.framework
+                after_framework=${target#*R.framework}
+                new_target="$OUTPUT_DIR/R.framework$after_framework"
+                if [ -e "$new_target" ]; then
+                  # Calculate relative path from link location to new target
+                  rel_target=$(realpath --relative-to="$link_dir" "$new_target" 2>/dev/null || python3 -c "import os.path; print(os.path.relpath('$new_target', '$link_dir'))")
+                  echo "  Converting: $link"
+                  echo "    From: $target"
+                  echo "    To: $rel_target"
+                  rm "$link"
+                  ln -s "$rel_target" "$link"
+                else
+                  echo "  WARNING: Cannot convert $link - target $new_target does not exist"
+                fi
+              else
+                echo "  WARNING: Absolute symlink outside R.framework: $link -> $target"
+              fi
+            fi
+          done
+
           # Ensure Resources symlink exists and is correct
           echo "Checking R.framework structure..."
           ls -la "$OUTPUT_DIR/R.framework/"
@@ -233,6 +268,15 @@ jobs:
               echo "Created symlink: Resources -> $REL_PATH"
             fi
           fi
+
+          # Verify symlinks are now relative
+          echo "Verifying symlinks are relative..."
+          find "$OUTPUT_DIR/R.framework" -type l | while read -r link; do
+            target=$(readlink "$link")
+            if [[ "$target" == /* ]]; then
+              echo "  STILL ABSOLUTE: $link -> $target"
+            fi
+          done | head -20
 
           # Verify the Rscript binary exists
           echo "Verifying Rscript binaries..."
@@ -258,65 +302,77 @@ jobs:
           fi
           echo "Resources directory: $RESOURCES_DIR"
 
-          # Patch the R script
+          # Create the dynamic R_HOME detection code as a separate file
+          cat > /tmp/r_home_detect.sh << 'DETECT_EOF'
+# Dynamic R_HOME detection - patched for portable deployment
+if test -n "${R_HOME}"; then
+  R_HOME_DIR="${R_HOME}"
+else
+  # Detect script location dynamically
+  _SCRIPT_SOURCE="${BASH_SOURCE[0]:-$0}"
+  while [ -L "$_SCRIPT_SOURCE" ]; do
+    _SCRIPT_DIR="$( cd -P "$( dirname "$_SCRIPT_SOURCE" )" && pwd )"
+    _SCRIPT_SOURCE="$(readlink "$_SCRIPT_SOURCE")"
+    [[ $_SCRIPT_SOURCE != /* ]] && _SCRIPT_SOURCE="$_SCRIPT_DIR/$_SCRIPT_SOURCE"
+  done
+  _SCRIPT_DIR="$( cd -P "$( dirname "$_SCRIPT_SOURCE" )" && pwd )"
+  R_HOME_DIR="$( cd "$_SCRIPT_DIR/.." && pwd )"
+  unset _SCRIPT_SOURCE _SCRIPT_DIR
+fi
+DETECT_EOF
+
+          # Patch the R script using sed to replace only the R_HOME_DIR line
           if [ -f "$RESOURCES_DIR/bin/R" ]; then
             echo "Patching $RESOURCES_DIR/bin/R"
             # Show current R_HOME_DIR line
-            grep "R_HOME_DIR=" "$RESOURCES_DIR/bin/R" | head -1 || true
+            grep "^R_HOME_DIR=" "$RESOURCES_DIR/bin/R" | head -1 || true
 
-            # Create a patched version that detects its location dynamically
-            {
-              echo '#!/bin/bash'
-              echo '# Patched to use dynamic path detection'
-              echo 'if test -n "${R_HOME}"; then'
-              echo '  R_HOME_DIR="${R_HOME}"'
-              echo 'else'
-              echo '  # Detect script location dynamically'
-              echo '  SOURCE="${BASH_SOURCE[0]}"'
-              echo '  while [ -h "$SOURCE" ]; do'
-              echo '    DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"'
-              echo '    SOURCE="$(readlink "$SOURCE")"'
-              echo '    [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"'
-              echo '  done'
-              echo '  SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"'
-              echo '  R_HOME_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"'
-              echo 'fi'
-              echo ''
-              # Copy the rest of the original script, skipping the R_HOME_DIR assignment
-              tail -n +3 "$RESOURCES_DIR/bin/R" | grep -v "^R_HOME_DIR=" | grep -v "^# Shell wrapper"
-            } > "$RESOURCES_DIR/bin/R.patched"
-            mv "$RESOURCES_DIR/bin/R.patched" "$RESOURCES_DIR/bin/R"
-            chmod +x "$RESOURCES_DIR/bin/R"
+            # Replace the R_HOME_DIR=... line with our dynamic detection
+            # First, get line number of R_HOME_DIR assignment
+            LINE_NUM=$(grep -n "^R_HOME_DIR=" "$RESOURCES_DIR/bin/R" | head -1 | cut -d: -f1)
+            if [ -n "$LINE_NUM" ]; then
+              # Create new script: header + detection code + rest of original (minus R_HOME_DIR line)
+              {
+                head -n $((LINE_NUM - 1)) "$RESOURCES_DIR/bin/R"
+                cat /tmp/r_home_detect.sh
+                tail -n +$((LINE_NUM + 1)) "$RESOURCES_DIR/bin/R"
+              } > "$RESOURCES_DIR/bin/R.patched"
+              mv "$RESOURCES_DIR/bin/R.patched" "$RESOURCES_DIR/bin/R"
+              chmod +x "$RESOURCES_DIR/bin/R"
+              echo "R script patched successfully"
+            else
+              echo "WARNING: R_HOME_DIR= line not found in R script"
+            fi
           fi
 
-          # Patch the Rscript script
+          # Patch the Rscript script the same way
           if [ -f "$RESOURCES_DIR/bin/Rscript" ]; then
             echo "Patching $RESOURCES_DIR/bin/Rscript"
-            grep "R_HOME_DIR=" "$RESOURCES_DIR/bin/Rscript" | head -1 || true
+            grep "^R_HOME_DIR=" "$RESOURCES_DIR/bin/Rscript" | head -1 || true
 
-            {
-              echo '#!/bin/bash'
-              echo '# Patched to use dynamic path detection'
-              echo 'if test -n "${R_HOME}"; then'
-              echo '  R_HOME_DIR="${R_HOME}"'
-              echo 'else'
-              echo '  SOURCE="${BASH_SOURCE[0]}"'
-              echo '  while [ -h "$SOURCE" ]; do'
-              echo '    DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"'
-              echo '    SOURCE="$(readlink "$SOURCE")"'
-              echo '    [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"'
-              echo '  done'
-              echo '  SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"'
-              echo '  R_HOME_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"'
-              echo 'fi'
-              echo ''
-              tail -n +3 "$RESOURCES_DIR/bin/Rscript" | grep -v "^R_HOME_DIR=" | grep -v "^# Shell wrapper"
-            } > "$RESOURCES_DIR/bin/Rscript.patched"
-            mv "$RESOURCES_DIR/bin/Rscript.patched" "$RESOURCES_DIR/bin/Rscript"
-            chmod +x "$RESOURCES_DIR/bin/Rscript"
+            LINE_NUM=$(grep -n "^R_HOME_DIR=" "$RESOURCES_DIR/bin/Rscript" | head -1 | cut -d: -f1)
+            if [ -n "$LINE_NUM" ]; then
+              {
+                head -n $((LINE_NUM - 1)) "$RESOURCES_DIR/bin/Rscript"
+                cat /tmp/r_home_detect.sh
+                tail -n +$((LINE_NUM + 1)) "$RESOURCES_DIR/bin/Rscript"
+              } > "$RESOURCES_DIR/bin/Rscript.patched"
+              mv "$RESOURCES_DIR/bin/Rscript.patched" "$RESOURCES_DIR/bin/Rscript"
+              chmod +x "$RESOURCES_DIR/bin/Rscript"
+              echo "Rscript patched successfully"
+            else
+              echo "WARNING: R_HOME_DIR= line not found in Rscript"
+            fi
           fi
 
+          rm -f /tmp/r_home_detect.sh
           echo "Scripts patched successfully"
+
+          # Verify the patched scripts
+          echo "=== Verifying patched R script (first 30 lines) ==="
+          head -30 "$RESOURCES_DIR/bin/R" || true
+          echo "=== Verifying patched Rscript (first 30 lines) ==="
+          head -30 "$RESOURCES_DIR/bin/Rscript" || true
 
           # Find actual library path and copy installed packages
           ACTUAL_LIB=$(find "$OUTPUT_DIR/R.framework/Versions" -maxdepth 3 -type d -name "library" | head -1)
