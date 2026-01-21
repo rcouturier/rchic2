@@ -82,22 +82,20 @@ function getRPath() {
         return bundledR;
       }
     } else if (platform === 'darwin') {
-      // macOS: first try the wrapper script in bin/ (handles path relocation)
-      const wrapperScript = path.join(rPortablePath, 'bin', 'Rscript');
-      if (fs.existsSync(wrapperScript)) {
-        log.info('Using bundled R wrapper script');
-        return wrapperScript;
-      }
-      // Fallback: look for Rscript inside R.framework
+      // macOS: Try direct path to R.framework first (more reliable than wrapper)
+      // The wrapper can have issues with App Translocation on macOS
+
+      // Try R.framework/Resources/bin/Rscript (symlink path)
       const rFrameworkBin = path.join(rPortablePath, 'R.framework', 'Resources', 'bin', 'Rscript');
       if (fs.existsSync(rFrameworkBin)) {
-        log.info('Using bundled R from R.framework');
+        log.info('Using bundled R from R.framework/Resources');
         return rFrameworkBin;
       }
-      // Also try Versions path
+
+      // Try Versions path (handles different R versions for Intel/ARM)
       const versionsPath = path.join(rPortablePath, 'R.framework', 'Versions');
       if (fs.existsSync(versionsPath)) {
-        const versions = fs.readdirSync(versionsPath).filter(v => !v.startsWith('.'));
+        const versions = fs.readdirSync(versionsPath).filter(v => !v.startsWith('.') && v !== 'Current');
         for (const ver of versions) {
           const rscript = path.join(versionsPath, ver, 'Resources', 'bin', 'Rscript');
           if (fs.existsSync(rscript)) {
@@ -105,6 +103,29 @@ function getRPath() {
             return rscript;
           }
         }
+      }
+
+      // Fallback: try the wrapper script in bin/
+      const wrapperScript = path.join(rPortablePath, 'bin', 'Rscript');
+      if (fs.existsSync(wrapperScript)) {
+        log.info('Using bundled R wrapper script (fallback)');
+        return wrapperScript;
+      }
+
+      // Debug: list what's in R.framework
+      log.warn('R not found in R.framework, listing contents for debug:');
+      try {
+        const rFrameworkPath = path.join(rPortablePath, 'R.framework');
+        if (fs.existsSync(rFrameworkPath)) {
+          log.info(`R.framework contents: ${fs.readdirSync(rFrameworkPath).join(', ')}`);
+          if (fs.existsSync(versionsPath)) {
+            log.info(`Versions contents: ${fs.readdirSync(versionsPath).join(', ')}`);
+          }
+        } else {
+          log.warn('R.framework does not exist!');
+        }
+      } catch (e) {
+        log.warn(`Could not list R.framework: ${e.message}`);
       }
     } else {
       // Linux
@@ -158,11 +179,30 @@ async function startRServer() {
       // On macOS, set R_HOME to R.framework/Resources
       if (process.platform === 'darwin' && !isDev) {
         const rPortablePath = getResourcePath('R-portable');
-        const rFrameworkResources = path.join(rPortablePath, 'R.framework', 'Resources');
         const fs = require('fs');
+
+        // Try the symlink path first
+        let rFrameworkResources = path.join(rPortablePath, 'R.framework', 'Resources');
+        if (!fs.existsSync(rFrameworkResources)) {
+          // Try to find actual Resources in Versions
+          const versionsPath = path.join(rPortablePath, 'R.framework', 'Versions');
+          if (fs.existsSync(versionsPath)) {
+            const versions = fs.readdirSync(versionsPath).filter(v => !v.startsWith('.') && v !== 'Current');
+            for (const ver of versions) {
+              const candidate = path.join(versionsPath, ver, 'Resources');
+              if (fs.existsSync(candidate)) {
+                rFrameworkResources = candidate;
+                break;
+              }
+            }
+          }
+        }
+
         if (fs.existsSync(rFrameworkResources)) {
           rEnv.R_HOME = rFrameworkResources;
           log.info(`Set R_HOME to: ${rEnv.R_HOME}`);
+        } else {
+          log.warn(`R_HOME not found: ${rFrameworkResources}`);
         }
       }
 
