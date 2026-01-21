@@ -303,23 +303,23 @@ jobs:
           echo "Resources directory: $RESOURCES_DIR"
 
           # Create the dynamic R_HOME detection code as a separate file
-          cat > /tmp/r_home_detect.sh << 'DETECT_EOF'
-# Dynamic R_HOME detection - patched for portable deployment
-if test -n "${R_HOME}"; then
-  R_HOME_DIR="${R_HOME}"
-else
-  # Detect script location dynamically
-  _SCRIPT_SOURCE="${BASH_SOURCE[0]:-$0}"
-  while [ -L "$_SCRIPT_SOURCE" ]; do
-    _SCRIPT_DIR="$( cd -P "$( dirname "$_SCRIPT_SOURCE" )" && pwd )"
-    _SCRIPT_SOURCE="$(readlink "$_SCRIPT_SOURCE")"
-    [[ $_SCRIPT_SOURCE != /* ]] && _SCRIPT_SOURCE="$_SCRIPT_DIR/$_SCRIPT_SOURCE"
-  done
-  _SCRIPT_DIR="$( cd -P "$( dirname "$_SCRIPT_SOURCE" )" && pwd )"
-  R_HOME_DIR="$( cd "$_SCRIPT_DIR/.." && pwd )"
-  unset _SCRIPT_SOURCE _SCRIPT_DIR
-fi
-DETECT_EOF
+          {
+            echo '# Dynamic R_HOME detection - patched for portable deployment'
+            echo 'if test -n "${R_HOME}"; then'
+            echo '  R_HOME_DIR="${R_HOME}"'
+            echo 'else'
+            echo '  # Detect script location dynamically'
+            echo '  _SCRIPT_SOURCE="${BASH_SOURCE[0]:-$0}"'
+            echo '  while [ -L "$_SCRIPT_SOURCE" ]; do'
+            echo '    _SCRIPT_DIR="$( cd -P "$( dirname "$_SCRIPT_SOURCE" )" && pwd )"'
+            echo '    _SCRIPT_SOURCE="$(readlink "$_SCRIPT_SOURCE")"'
+            echo '    [[ $_SCRIPT_SOURCE != /* ]] && _SCRIPT_SOURCE="$_SCRIPT_DIR/$_SCRIPT_SOURCE"'
+            echo '  done'
+            echo '  _SCRIPT_DIR="$( cd -P "$( dirname "$_SCRIPT_SOURCE" )" && pwd )"'
+            echo '  R_HOME_DIR="$( cd "$_SCRIPT_DIR/.." && pwd )"'
+            echo '  unset _SCRIPT_SOURCE _SCRIPT_DIR'
+            echo 'fi'
+          } > /tmp/r_home_detect.sh
 
           # Patch the R script using sed to replace only the R_HOME_DIR line
           if [ -f "$RESOURCES_DIR/bin/R" ]; then
