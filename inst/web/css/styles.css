@@ -574,3 +574,137 @@ body {
 .options-panel {
   transition: opacity 0.2s ease;
 }
+
+/* =============================================================================
+   Tab Navigation
+   ============================================================================= */
+
+.tab-navigation {
+  display: flex;
+  background: white;
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 15px;
+  gap: 5px;
+}
+
+.tab-btn {
+  padding: 12px 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+  color: var(--primary-color);
+}
+
+.tab-btn.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+}
+
+.tab-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tab-content.hidden {
+  display: none !important;
+}
+
+#tab-content-graph {
+  position: relative;
+}
+
+/* =============================================================================
+   Console Panel (Tab Donnees de calcul)
+   ============================================================================= */
+
+.console-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--dark-color);
+  margin: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+  overflow: hidden;
+}
+
+.console-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: #1a252f;
+  border-bottom: 1px solid #34495e;
+}
+
+.console-header h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #ecf0f1;
+  margin: 0;
+}
+
+.console-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.console-controls .btn {
+  padding: 5px 12px;
+  font-size: 0.75rem;
+  background: #34495e;
+  color: #ecf0f1;
+  border: none;
+}
+
+.console-controls .btn:hover {
+  background: #4a6278;
+}
+
+.console-output {
+  flex: 1;
+  padding: 15px 20px;
+  overflow-y: auto;
+  font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: #2ecc71;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.console-output .text-muted {
+  color: #7f8c8d;
+}
+
+.console-output .console-line {
+  margin: 0;
+  padding: 2px 0;
+}
+
+.console-output .console-line.error {
+  color: #e74c3c;
+}
+
+.console-output .console-line.warning {
+  color: #f39c12;
+}
+
+.console-output .console-line.info {
+  color: #3498db;
+}
+
+.console-output .console-line.header {
+  color: #9b59b6;
+  font-weight: bold;
+}

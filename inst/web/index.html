@@ -151,18 +151,43 @@
 
       <!-- Main visualization area -->
       <main class="visualization-area">
-        <div id="viz-container">
-          <div id="placeholder" class="placeholder">
-            <p>Chargez un fichier CSV pour commencer l'analyse</p>
-          </div>
-          <div id="graph-container" class="hidden"></div>
-          <div id="tree-container" class="hidden"></div>
+        <!-- Tab navigation -->
+        <div class="tab-navigation">
+          <button id="tab-graph" class="tab-btn active" data-tab="graph">Graphique</button>
+          <button id="tab-data" class="tab-btn" data-tab="data">Donnees de calcul</button>
         </div>
 
-        <!-- Info panel -->
-        <div id="info-panel" class="info-panel hidden">
-          <h4>Details</h4>
-          <div id="info-content"></div>
+        <!-- Tab content: Graphique -->
+        <div id="tab-content-graph" class="tab-content active">
+          <div id="viz-container">
+            <div id="placeholder" class="placeholder">
+              <p>Chargez un fichier CSV pour commencer l'analyse</p>
+            </div>
+            <div id="graph-container" class="hidden"></div>
+            <div id="tree-container" class="hidden"></div>
+          </div>
+
+          <!-- Info panel -->
+          <div id="info-panel" class="info-panel hidden">
+            <h4>Details</h4>
+            <div id="info-content"></div>
+          </div>
+        </div>
+
+        <!-- Tab content: Donnees -->
+        <div id="tab-content-data" class="tab-content hidden">
+          <div class="console-panel">
+            <div class="console-header">
+              <h3>Console R</h3>
+              <div class="console-controls">
+                <button id="btn-refresh-console" class="btn btn-secondary btn-sm">Actualiser</button>
+                <button id="btn-clear-console" class="btn btn-secondary btn-sm">Effacer</button>
+              </div>
+            </div>
+            <div id="console-output" class="console-output">
+              <p class="text-muted">Lancez un calcul pour voir les messages</p>
+            </div>
+          </div>
         </div>
       </main>
 

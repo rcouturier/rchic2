@@ -19,6 +19,7 @@ class RchicApp {
     this.selectedVariables = new Set();
     this.cy = null;  // Cytoscape instance
     this.currentData = null;
+    this.currentTab = 'graph';  // Onglet actif
 
     // Thresholds configuration
     this.thresholds = [
@@ -112,6 +113,22 @@ class RchicApp {
         e.preventDefault();
         this.selectAllVariables(false);
       }
+    });
+
+    // Tab navigation
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        this.switchTab(e.target.dataset.tab);
+      });
+    });
+
+    // Console buttons
+    document.getElementById('btn-refresh-console').addEventListener('click', () => {
+      this.fetchConsoleMessages();
+    });
+
+    document.getElementById('btn-clear-console').addEventListener('click', () => {
+      this.clearConsole();
     });
   }
 
@@ -233,6 +250,12 @@ class RchicApp {
     this.showLoading(true);
 
     try {
+      // Switch to graph tab BEFORE rendering to ensure visibility
+      this.switchTab('graph');
+
+      // Wait for browser to finish rendering (two animation frames for safety)
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
       let result;
       const selectedVars = Array.from(this.selectedVariables);
 
@@ -244,11 +267,15 @@ class RchicApp {
 
         case 'similarity':
           result = await this.computeSimilarity(selectedVars);
+          // Wait for container to have valid dimensions
+          await this.waitForContainer();
           this.renderTree(result, 'similarity');
           break;
 
         case 'hierarchy':
           result = await this.computeHierarchy(selectedVars);
+          // Wait for container to have valid dimensions
+          await this.waitForContainer();
           this.renderTree(result, 'hierarchy');
           break;
       }
@@ -256,10 +283,26 @@ class RchicApp {
       this.currentData = result;
       document.getElementById('btn-export').disabled = false;
 
+      // Update console messages after computation
+      await this.fetchConsoleMessages();
+
     } catch (e) {
       this.showToast('Erreur de calcul: ' + e.message, 'error');
     } finally {
       this.showLoading(false);
+    }
+  }
+
+  async waitForContainer() {
+    // Wait until viz-container has valid dimensions
+    const vizContainer = document.getElementById('viz-container');
+    let attempts = 0;
+    while (attempts < 20) {
+      if (vizContainer.clientWidth > 0 && vizContainer.clientHeight > 0) {
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, 50));
+      attempts++;
     }
   }
 
@@ -559,8 +602,10 @@ class RchicApp {
     const container = document.getElementById('tree-container');
     container.innerHTML = '';
 
-    const width = container.clientWidth;
-    const height = container.clientHeight;
+    // Get parent container dimensions
+    const vizContainer = document.getElementById('viz-container');
+    const width = vizContainer.clientWidth || 1200;
+    const height = vizContainer.clientHeight || 800;
     const margin = { top: 40, right: 40, bottom: 80, left: 40 };
 
     // Create SVG
@@ -850,6 +895,95 @@ class RchicApp {
     }
 
     this.showToast('Export termine', 'success');
+  }
+
+  // ==========================================================================
+  // Tab Management
+  // ==========================================================================
+
+  switchTab(tabId) {
+    this.currentTab = tabId;
+
+    // Update tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === tabId);
+    });
+
+    // Update tab content
+    document.getElementById('tab-content-graph').classList.toggle('hidden', tabId !== 'graph');
+    document.getElementById('tab-content-data').classList.toggle('hidden', tabId !== 'data');
+
+    // If switching to data tab, load console messages
+    if (tabId === 'data') {
+      this.fetchConsoleMessages();
+    }
+
+    // If switching to graph tab, refresh the visualization
+    if (tabId === 'graph' && this.cy) {
+      // Delay to ensure the container is visible
+      setTimeout(() => {
+        this.cy.resize();
+        this.cy.fit();
+      }, 50);
+    }
+  }
+
+  // ==========================================================================
+  // Console Management
+  // ==========================================================================
+
+  async fetchConsoleMessages() {
+    try {
+      const response = await fetch(`${this.apiBase}/console`);
+      const result = await response.json();
+      if (result.success) {
+        this.renderConsole(result.messages);
+      }
+    } catch (e) {
+      console.error('Error fetching console:', e);
+    }
+  }
+
+  renderConsole(messages) {
+    const outputEl = document.getElementById('console-output');
+
+    if (!messages || messages.length === 0) {
+      outputEl.innerHTML = '<p class="text-muted">Lancez un calcul pour voir les messages</p>';
+      return;
+    }
+
+    outputEl.innerHTML = messages.map(msg => {
+      let lineClass = 'console-line';
+
+      // Colorer selon le type de message
+      if (msg.startsWith('===') || msg.startsWith('---')) {
+        lineClass += ' header';
+      } else if (msg.toLowerCase().includes('erreur') || msg.toLowerCase().includes('error')) {
+        lineClass += ' error';
+      } else if (msg.toLowerCase().includes('warning') || msg.toLowerCase().includes('attention')) {
+        lineClass += ' warning';
+      }
+
+      return `<div class="${lineClass}">${this.escapeHtml(msg)}</div>`;
+    }).join('');
+
+    // Scroll to bottom
+    outputEl.scrollTop = outputEl.scrollHeight;
+  }
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  async clearConsole() {
+    try {
+      await fetch(`${this.apiBase}/console/clear`, { method: 'POST' });
+      document.getElementById('console-output').innerHTML = '<p class="text-muted">Console effacee</p>';
+    } catch (e) {
+      console.error('Error clearing console:', e);
+    }
   }
 }
 

@@ -12,6 +12,21 @@ library(rchic)
 # Variable globale pour stocker les donnees de session
 .rchic_env <- new.env(parent = emptyenv())
 
+# Buffer pour les messages de la console
+.rchic_env$console_messages <- character(0)
+
+# Fonction pour ajouter un message a la console
+rchic_message <- function(...) {
+  msg <- paste0(...)
+  .rchic_env$console_messages <- c(.rchic_env$console_messages, msg)
+  cat(msg, "\n")
+}
+
+# Fonction pour effacer les messages
+rchic_clear_console <- function() {
+  .rchic_env$console_messages <- character(0)
+}
+
 # Creer un repertoire de travail temporaire (necessaire pour AppImage)
 .rchic_env$workdir <- file.path(tempdir(), "rchic_work")
 if (!dir.exists(.rchic_env$workdir)) {
@@ -50,6 +65,22 @@ function() {
     version = as.character(packageVersion("rchic")),
     timestamp = Sys.time()
   )
+}
+
+#* Recuperer les messages de la console
+#* @get /api/console
+function() {
+  list(
+    success = TRUE,
+    messages = .rchic_env$console_messages
+  )
+}
+
+#* Effacer les messages de la console
+#* @post /api/console/clear
+function() {
+  rchic_clear_console()
+  list(success = TRUE)
 }
 
 #* Liste des fichiers de donnees disponibles
@@ -206,6 +237,16 @@ function(threshold = 85, computing_mode = 1, complete_graph = FALSE, selected_va
       return(list(success = FALSE, error = "No data loaded. Call /api/load first."))
     }
 
+    # Effacer les anciens messages et commencer le log
+    rchic_clear_console()
+    rchic_message("=== GRAPHE IMPLICATIF ===")
+    rchic_message(paste("Date:", Sys.time()))
+
+    mode_names <- c("Classique", "Classique + Confiance", "Implifiance", "Entropique")
+    rchic_message(paste("Mode de calcul:", mode_names[computing_mode]))
+    rchic_message(paste("Seuil minimum:", threshold))
+    rchic_message(paste("Graphe complet:", ifelse(complete_graph, "Oui", "Non")))
+
     # Lire les regles calculees
     rules <- read.table(
       file = 'transaction.out',
@@ -286,6 +327,15 @@ function(threshold = 85, computing_mode = 1, complete_graph = FALSE, selected_va
       }
     }
 
+    # Messages de resultats
+    rchic_message("")
+    rchic_message(paste("Variables selectionnees:", length(selected_variables)))
+    rchic_message(paste("Regles totales analysees:", nrow(rules)))
+    rchic_message(paste("Noeuds dans le graphe:", length(nodes)))
+    rchic_message(paste("Aretes dans le graphe:", length(edges)))
+    rchic_message("")
+    rchic_message("=== FIN DU CALCUL ===")
+
     list(
       success = TRUE,
       nodes = unname(nodes),
@@ -296,6 +346,7 @@ function(threshold = 85, computing_mode = 1, complete_graph = FALSE, selected_va
       n_edges = length(edges)
     )
   }, error = function(e) {
+    rchic_message(paste("ERREUR:", e$message))
     res$status <- 500
     list(success = FALSE, error = e$message)
   })
@@ -316,6 +367,13 @@ function(selected_variables = NULL, contribution_supp = FALSE, typicality_supp =
       res$status <- 400
       return(list(success = FALSE, error = "No data loaded. Call /api/load first."))
     }
+
+    # Effacer les anciens messages et commencer le log
+    rchic_clear_console()
+    rchic_message("=== ARBRE DE SIMILARITE ===")
+    rchic_message(paste("Date:", Sys.time()))
+    rchic_message(paste("Contributions:", ifelse(contribution_supp, "Oui", "Non")))
+    rchic_message(paste("Typicalites:", ifelse(typicality_supp, "Oui", "Non")))
 
     list_variables <- .rchic_env$list_variables
     supplementary_variables <- .rchic_env$supplementary_variables
@@ -416,6 +474,14 @@ function(selected_variables = NULL, contribution_supp = FALSE, typicality_supp =
     # list_variables contient l'ordre original des colonnes
     input_variables <- sub_variables
 
+    # Messages de resultats
+    rchic_message("")
+    rchic_message(paste("Variables selectionnees:", length(input_variables)))
+    rchic_message(paste("Niveaux de l'arbre:", nb_levels))
+    rchic_message(paste("Noeuds significatifs:", sum(significant_nodes[1:nb_levels])))
+    rchic_message("")
+    rchic_message("=== FIN DU CALCUL ===")
+
     list(
       success = TRUE,
       tree_type = "similarity",
@@ -431,6 +497,7 @@ function(selected_variables = NULL, contribution_supp = FALSE, typicality_supp =
       raw_variables = list_vars_raw
     )
   }, error = function(e) {
+    rchic_message(paste("ERREUR:", e$message))
     res$status <- 500
     list(success = FALSE, error = e$message)
   })
@@ -452,6 +519,16 @@ function(computing_mode = 1, selected_variables = NULL, contribution_supp = FALS
       res$status <- 400
       return(list(success = FALSE, error = "No data loaded. Call /api/load first."))
     }
+
+    # Effacer les anciens messages et commencer le log
+    rchic_clear_console()
+    rchic_message("=== ARBRE HIERARCHIQUE ===")
+    rchic_message(paste("Date:", Sys.time()))
+
+    mode_names <- c("Classique", "Classique + Confiance", "Implifiance")
+    rchic_message(paste("Mode de calcul:", mode_names[computing_mode]))
+    rchic_message(paste("Contributions:", ifelse(contribution_supp, "Oui", "Non")))
+    rchic_message(paste("Typicalites:", ifelse(typicality_supp, "Oui", "Non")))
 
     list_variables <- .rchic_env$list_variables
     supplementary_variables <- .rchic_env$supplementary_variables
@@ -564,6 +641,15 @@ function(computing_mode = 1, selected_variables = NULL, contribution_supp = FALS
     # Variables d'entrée
     input_variables <- list_variables[selected]
 
+    # Messages de resultats
+    rchic_message("")
+    rchic_message(paste("Variables selectionnees:", length(input_variables)))
+    rchic_message(paste("Niveaux de l'arbre:", nb_levels))
+    rchic_message(paste("Noeuds significatifs:", sum(significant_nodes[1:nb_levels])))
+    rchic_message(paste("Noeuds finaux:", sum(final_nodes)))
+    rchic_message("")
+    rchic_message("=== FIN DU CALCUL ===")
+
     list(
       success = TRUE,
       tree_type = "hierarchy",
@@ -581,6 +667,7 @@ function(computing_mode = 1, selected_variables = NULL, contribution_supp = FALS
       raw_variables = list_vars_raw
     )
   }, error = function(e) {
+    rchic_message(paste("ERREUR:", e$message))
     res$status <- 500
     list(success = FALSE, error = e$message)
   })
@@ -617,6 +704,53 @@ function(res) {
   }, error = function(e) {
     res$status <- 500
     paste("error,", e$message)
+  })
+}
+
+#* Obtenir toutes les regles avec details (format JSON)
+#* @get /api/rules
+function(res) {
+  tryCatch({
+    if (!file.exists('transaction.out')) {
+      res$status <- 404
+      return(list(success = FALSE, error = "No rules computed"))
+    }
+
+    rules <- read.table(
+      file = 'transaction.out',
+      header = TRUE,
+      row.names = 1,
+      sep = ',',
+      stringsAsFactors = FALSE
+    )
+
+    # Convertir en data.frame avec noms explicites (plus rapide que lapply)
+    rules_df <- data.frame(
+      rule = row.names(rules),
+      occ_hypothese = as.numeric(rules[, 1]),
+      occ_conclusion = as.numeric(rules[, 2]),
+      contre_exemples = as.numeric(rules[, 3]),
+      confiance = as.numeric(rules[, 4]),
+      implication_classique = as.numeric(rules[, 5]),
+      implication_entropique = as.numeric(rules[, 6]),
+      implifiance = as.numeric(rules[, 7]),
+      similarite_classique = as.numeric(rules[, 8]),
+      similarite_entropique = as.numeric(rules[, 9]),
+      stringsAsFactors = FALSE
+    )
+
+    # Convertir en liste de listes pour JSON
+    rules_list <- lapply(split(rules_df, seq(nrow(rules_df))), function(x) as.list(x))
+    names(rules_list) <- NULL
+
+    list(
+      success = TRUE,
+      n_rules = nrow(rules),
+      rules = rules_list
+    )
+  }, error = function(e) {
+    res$status <- 500
+    list(success = FALSE, error = e$message)
   })
 }
 
