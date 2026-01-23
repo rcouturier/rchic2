@@ -38,7 +38,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libsodium-dev libicu-dev graphviz libgraphviz-dev
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libsodium-dev libicu-dev
 
       - name: Install R packages
         run: |
@@ -46,10 +46,9 @@ jobs:
                              'httpuv', 'webutils', 'swagger', 'magrittr', 'crayon',
                              'ellipsis', 'lifecycle', 'rlang', 'R6', 'stringi',
                              'sodium', 'digest', 'globals', 'listenv', 'parallelly', 'Rcpp',
-                             'stringr', 'tcltk2', 'BiocManager'),
+                             'stringr'),
                            repos = 'https://cloud.r-project.org',
                            dependencies = c('Depends', 'Imports', 'LinkingTo'))
-          BiocManager::install('Rgraphviz', ask = FALSE, update = FALSE)
         shell: Rscript {0}
 
       - name: Prepare R Portable for Linux
@@ -149,10 +148,9 @@ jobs:
                              'httpuv', 'webutils', 'swagger', 'magrittr', 'crayon',
                              'ellipsis', 'lifecycle', 'rlang', 'R6', 'stringi',
                              'sodium', 'digest', 'globals', 'listenv', 'parallelly', 'Rcpp',
-                             'stringr', 'tcltk2', 'BiocManager'),
+                             'stringr'),
                            repos = 'https://cloud.r-project.org',
                            dependencies = c('Depends', 'Imports', 'LinkingTo'))
-          BiocManager::install('Rgraphviz', ask = FALSE, update = FALSE)
         shell: Rscript {0}
 
       - name: Prepare R Portable for macOS
@@ -185,42 +183,59 @@ jobs:
           {
             echo '#!/bin/bash'
             echo '# Rscript wrapper for portable R on macOS'
-            echo '# Uses R --slave --no-restore instead of the Rscript binary'
-            echo '# because the Rscript binary has hardcoded paths that break with App Translocation'
             echo ''
-            echo '# Get the directory of this script (resolving symlinks)'
-            echo 'SOURCE="${BASH_SOURCE[0]}"'
-            echo 'while [ -h "$SOURCE" ]; do'
-            echo '  DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"'
-            echo '  SOURCE="$(readlink "$SOURCE")"'
-            echo '  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"'
-            echo 'done'
-            echo 'SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"'
+            echo '# Enable debug logging to /tmp/rscript-wrapper.log'
+            echo 'exec 2>>/tmp/rscript-wrapper.log'
+            echo 'echo "=== Rscript wrapper called at $(date) ===" >&2'
+            echo 'echo "Args: $@" >&2'
             echo ''
-            echo '# Find R_HOME dynamically'
-            echo 'if [ -z "$R_HOME" ] || [ ! -d "$R_HOME/bin" ]; then'
-            echo '  for CANDIDATE in \'
-            echo '    "$SCRIPT_DIR/../R.framework/Resources" \'
-            echo '    $(find "$SCRIPT_DIR/../R.framework/Versions" -maxdepth 2 -type d -name "Resources" 2>/dev/null) \'
-            echo '  ; do'
-            echo '    if [ -n "$CANDIDATE" ] && [ -f "$CANDIDATE/bin/R" ]; then'
-            echo '      R_HOME="$CANDIDATE"'
+            echo '# Get the directory of this script'
+            echo 'SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"'
+            echo 'echo "SCRIPT_DIR: $SCRIPT_DIR" >&2'
+            echo ''
+            echo '# Find R_HOME - check multiple possible locations'
+            echo 'R_FRAMEWORK="$SCRIPT_DIR/../R.framework"'
+            echo 'echo "R_FRAMEWORK: $R_FRAMEWORK" >&2'
+            echo ''
+            echo '# Try Resources symlink first'
+            echo 'if [ -d "$R_FRAMEWORK/Resources/bin" ]; then'
+            echo '  R_HOME="$R_FRAMEWORK/Resources"'
+            echo '  echo "Found R_HOME via Resources symlink" >&2'
+            echo 'else'
+            echo '  # Try to find in Versions directory'
+            echo '  for ver in "$R_FRAMEWORK/Versions"/*; do'
+            echo '    if [ -d "$ver/Resources/bin" ]; then'
+            echo '      R_HOME="$ver/Resources"'
+            echo '      echo "Found R_HOME in Versions: $ver" >&2'
             echo '      break'
             echo '    fi'
             echo '  done'
             echo 'fi'
             echo ''
-            echo '# Verify R_HOME is valid'
-            echo 'if [ -z "$R_HOME" ] || [ ! -f "$R_HOME/bin/R" ]; then'
-            echo '  echo "ERROR: Cannot find R. R_HOME=$R_HOME" >&2'
+            echo 'echo "R_HOME: $R_HOME" >&2'
+            echo ''
+            echo '# Verify R_HOME'
+            echo 'if [ -z "$R_HOME" ] || [ ! -d "$R_HOME/bin" ]; then'
+            echo '  echo "ERROR: Cannot find R_HOME with valid bin directory" >&2'
+            echo '  echo "Listing R.framework contents:" >&2'
+            echo '  ls -la "$R_FRAMEWORK" >&2 2>/dev/null || echo "Cannot list R.framework" >&2'
+            echo '  exit 1'
+            echo 'fi'
+            echo ''
+            echo '# Check for R binary'
+            echo 'R_BIN="$R_HOME/bin/R"'
+            echo 'if [ ! -f "$R_BIN" ]; then'
+            echo '  echo "ERROR: R binary not found at $R_BIN" >&2'
+            echo '  echo "Contents of $R_HOME/bin:" >&2'
+            echo '  ls -la "$R_HOME/bin" >&2 2>/dev/null'
             echo '  exit 1'
             echo 'fi'
             echo ''
             echo 'export R_HOME'
             echo 'export DYLD_LIBRARY_PATH="$R_HOME/lib:${DYLD_LIBRARY_PATH:-}"'
             echo ''
-            echo '# Use R with Rscript-equivalent flags'
-            echo 'exec "$R_HOME/bin/R" --slave --no-restore "$@"'
+            echo 'echo "Executing: $R_BIN --slave --no-restore $@" >&2'
+            echo 'exec "$R_BIN" --slave --no-restore "$@"'
           } > "$OUTPUT_DIR/bin/Rscript"
           chmod +x "$OUTPUT_DIR/bin/Rscript"
 
@@ -467,10 +482,9 @@ jobs:
                              'httpuv', 'webutils', 'swagger', 'magrittr', 'crayon',
                              'ellipsis', 'lifecycle', 'rlang', 'R6', 'stringi',
                              'sodium', 'digest', 'globals', 'listenv', 'parallelly', 'Rcpp',
-                             'stringr', 'tcltk2', 'BiocManager', 'otel'),
+                             'stringr'),
                            repos = 'https://cloud.r-project.org',
                            dependencies = c('Depends', 'Imports', 'LinkingTo'))
-          BiocManager::install('Rgraphviz', ask = FALSE, update = FALSE)
         shell: Rscript {0}
 
       - name: Prepare R Portable for Windows
