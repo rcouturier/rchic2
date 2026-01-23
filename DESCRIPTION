@@ -17,8 +17,6 @@ Description: This package is intented to implement all the features of
 Depends:
     R (>= 3.5)
 Imports:
-    tcltk2,
-    Rgraphviz,
     stringr,
     Rcpp
 License: GPL-3
