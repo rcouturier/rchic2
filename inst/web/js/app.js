@@ -57,6 +57,11 @@ class RchicApp {
       console.warn('Could not set backend locale:', err);
     }
 
+    // Set Electron menu locale (if running in Electron)
+    if (window.electronAPI && window.electronAPI.setLocale) {
+      window.electronAPI.setLocale(window.i18n.locale);
+    }
+
     // Language selector
     const langSelector = document.getElementById('lang-selector');
     if (langSelector) {
@@ -73,6 +78,10 @@ class RchicApp {
           });
         } catch (err) {
           console.warn('Could not set backend locale:', err);
+        }
+        // Update Electron menu locale (if running in Electron)
+        if (window.electronAPI && window.electronAPI.setLocale) {
+          window.electronAPI.setLocale(locale);
         }
         // Update dynamic content
         this.updateDynamicTranslations();

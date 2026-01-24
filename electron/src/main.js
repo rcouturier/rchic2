@@ -1,8 +1,65 @@
-const { app, BrowserWindow, Menu, dialog, shell } = require('electron');
+const { app, BrowserWindow, Menu, dialog, shell, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { spawn } = require('child_process');
 const portfinder = require('portfinder');
 const log = require('electron-log');
+
+// i18n for menus
+let currentLocale = 'fr';
+let menuTranslations = {};
+
+function loadMenuTranslations() {
+  const locales = ['fr', 'en', 'pt'];
+  for (const locale of locales) {
+    try {
+      const localePath = getResourcePath(path.join('web', 'locales', `${locale}.json`));
+      if (fs.existsSync(localePath)) {
+        const content = fs.readFileSync(localePath, 'utf8');
+        const data = JSON.parse(content);
+        menuTranslations[locale] = {
+          file: locale === 'fr' ? 'Fichier' : (locale === 'en' ? 'File' : 'Arquivo'),
+          openFile: locale === 'fr' ? 'Ouvrir un fichier CSV...' : (locale === 'en' ? 'Open CSV file...' : 'Abrir arquivo CSV...'),
+          quit: locale === 'fr' ? 'Quitter' : (locale === 'en' ? 'Quit' : 'Sair'),
+          view: locale === 'fr' ? 'Affichage' : (locale === 'en' ? 'View' : 'Visualizar'),
+          reload: locale === 'fr' ? 'Actualiser' : (locale === 'en' ? 'Reload' : 'Atualizar'),
+          devTools: locale === 'fr' ? 'Outils de developpement' : (locale === 'en' ? 'Developer Tools' : 'Ferramentas de desenvolvimento'),
+          zoomIn: 'Zoom +',
+          zoomOut: 'Zoom -',
+          zoomReset: 'Zoom 100%',
+          fullscreen: locale === 'fr' ? 'Plein ecran' : (locale === 'en' ? 'Fullscreen' : 'Tela cheia'),
+          help: locale === 'fr' ? 'Aide' : (locale === 'en' ? 'Help' : 'Ajuda'),
+          documentation: 'Documentation',
+          about: locale === 'fr' ? 'A propos' : (locale === 'en' ? 'About' : 'Sobre')
+        };
+      }
+    } catch (e) {
+      log.warn(`Could not load locale ${locale}:`, e.message);
+    }
+  }
+  // Default fallback
+  if (!menuTranslations.fr) {
+    menuTranslations.fr = {
+      file: 'Fichier', openFile: 'Ouvrir un fichier CSV...', quit: 'Quitter',
+      view: 'Affichage', reload: 'Actualiser', devTools: 'Outils de developpement',
+      zoomIn: 'Zoom +', zoomOut: 'Zoom -', zoomReset: 'Zoom 100%', fullscreen: 'Plein ecran',
+      help: 'Aide', documentation: 'Documentation', about: 'A propos'
+    };
+  }
+}
+
+function getMenuTranslation(key) {
+  const t = menuTranslations[currentLocale] || menuTranslations.fr;
+  return t[key] || key;
+}
+
+function detectLocale() {
+  const systemLocale = app.getLocale().slice(0, 2);
+  if (['fr', 'en', 'pt'].includes(systemLocale)) {
+    return systemLocale;
+  }
+  return 'fr';
+}
 
 // Configure logging
 log.transports.file.level = 'info';
@@ -285,61 +342,47 @@ function stopRServer() {
   }
 }
 
-// Create main window
-function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    minWidth: 800,
-    minHeight: 600,
-    icon: path.join(__dirname, '..', 'assets', 'icon.png'),
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true
-    },
-    show: false
-  });
-
-  // Create menu
+// Build application menu with translations
+function buildMenu() {
   const menuTemplate = [
     {
-      label: 'Fichier',
+      label: getMenuTranslation('file'),
       submenu: [
         {
-          label: 'Ouvrir un fichier CSV...',
+          label: getMenuTranslation('openFile'),
           accelerator: 'CmdOrCtrl+O',
           click: () => openFile()
         },
         { type: 'separator' },
         {
-          label: 'Quitter',
+          label: getMenuTranslation('quit'),
           accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Alt+F4',
           click: () => app.quit()
         }
       ]
     },
     {
-      label: 'Affichage',
+      label: getMenuTranslation('view'),
       submenu: [
-        { role: 'reload', label: 'Actualiser' },
-        { role: 'toggleDevTools', label: 'Outils de developpement' },
+        { role: 'reload', label: getMenuTranslation('reload') },
+        { role: 'toggleDevTools', label: getMenuTranslation('devTools') },
         { type: 'separator' },
-        { role: 'zoomIn', label: 'Zoom +' },
-        { role: 'zoomOut', label: 'Zoom -' },
-        { role: 'resetZoom', label: 'Zoom 100%' },
+        { role: 'zoomIn', label: getMenuTranslation('zoomIn') },
+        { role: 'zoomOut', label: getMenuTranslation('zoomOut') },
+        { role: 'resetZoom', label: getMenuTranslation('zoomReset') },
         { type: 'separator' },
-        { role: 'togglefullscreen', label: 'Plein ecran' }
+        { role: 'togglefullscreen', label: getMenuTranslation('fullscreen') }
       ]
     },
     {
-      label: 'Aide',
+      label: getMenuTranslation('help'),
       submenu: [
         {
-          label: 'Documentation',
+          label: getMenuTranslation('documentation'),
           click: () => shell.openExternal('https://github.com/rchic/Rchic/')
         },
         {
-          label: 'A propos',
+          label: getMenuTranslation('about'),
           click: () => showAbout()
         }
       ]
@@ -348,6 +391,40 @@ function createWindow() {
 
   const menu = Menu.buildFromTemplate(menuTemplate);
   Menu.setApplicationMenu(menu);
+}
+
+// Set locale and rebuild menu
+function setLocale(locale) {
+  if (['fr', 'en', 'pt'].includes(locale)) {
+    currentLocale = locale;
+    buildMenu();
+    log.info('Locale set to:', locale);
+  }
+}
+
+// Create main window
+function createWindow() {
+  const preloadPath = path.join(__dirname, 'preload.js');
+  log.info('Preload path:', preloadPath);
+  log.info('Preload exists:', fs.existsSync(preloadPath));
+
+  mainWindow = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    minWidth: 800,
+    minHeight: 600,
+    icon: path.join(__dirname, '..', 'assets', 'icon.png'),
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false,
+      preload: preloadPath
+    },
+    show: false
+  });
+
+  // Create menu with current locale
+  buildMenu();
 
   // Load the app
   mainWindow.loadURL(`http://127.0.0.1:${serverPort}/`);
@@ -425,9 +502,20 @@ async function waitForServer(port, maxAttempts = 30) {
   return false;
 }
 
+// IPC handlers
+ipcMain.on('set-locale', (event, locale) => {
+  log.info('IPC set-locale received:', locale);
+  setLocale(locale);
+});
+
 // App lifecycle
 app.whenReady().then(async () => {
   log.info('App starting...');
+
+  // Initialize locale
+  currentLocale = detectLocale();
+  loadMenuTranslations();
+  log.info('Locale initialized to:', currentLocale);
 
   try {
     await startRServer();
