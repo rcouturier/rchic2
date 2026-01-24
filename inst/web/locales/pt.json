@@ -1,0 +1,71 @@
+{
+  "app": {
+    "title": "RCHIC",
+    "subtitle": "Análise Estatística Implicativa"
+  },
+  "status": {
+    "connected": "Conectado",
+    "disconnected": "Desconectado"
+  },
+  "data": {
+    "title": "Dados",
+    "loadFile": "Carregar arquivo CSV",
+    "file": "Arquivo",
+    "observations": "Observações",
+    "variables": "Variáveis"
+  },
+  "analysis": {
+    "title": "Tipo de análise",
+    "implicative": "Grafo Implicativo",
+    "similarity": "Árvore de Similaridade",
+    "hierarchy": "Árvore Hierárquica"
+  },
+  "options": {
+    "graphTitle": "Opções do grafo",
+    "hierarchyTitle": "Opções da hierarquia",
+    "similarityTitle": "Opções de similaridade",
+    "computingMode": "Modo de cálculo",
+    "classic": "Clássico",
+    "classicConfidence": "Clássico + Confiança",
+    "implifiance": "Implifiance",
+    "entropic": "Entrópico",
+    "completeGraph": "Grafo completo (a⇒b e b⇒a)",
+    "thresholds": "Limiares",
+    "showConfidence": "Mostrar confiança",
+    "noOptions": "Sem opções adicionais"
+  },
+  "actions": {
+    "compute": "Calcular",
+    "export": "Exportar PNG",
+    "selectAll": "Todos",
+    "selectNone": "Nenhum",
+    "refresh": "Atualizar",
+    "clear": "Limpar"
+  },
+  "tabs": {
+    "visualization": "Visualização",
+    "data": "Dados de cálculo"
+  },
+  "console": {
+    "title": "Console R"
+  },
+  "variables": {
+    "title": "Variáveis"
+  },
+  "details": {
+    "title": "Detalhes"
+  },
+  "messages": {
+    "loadFilePrompt": "Carregue um arquivo CSV para iniciar a análise",
+    "computing": "Calculando...",
+    "noData": "Nenhum dado carregado",
+    "runCalculation": "Execute um cálculo para ver as mensagens",
+    "fileLoaded": "Arquivo carregado com sucesso",
+    "computeSuccess": "Cálculo concluído",
+    "computeError": "Erro no cálculo",
+    "connectionError": "Erro de conexão com o servidor",
+    "exportSuccess": "Exportação concluída",
+    "graphResult": "Grafo: {nodes} nós, {edges} arestas",
+    "treeResult": "Árvore: {variables} variáveis, {levels} níveis"
+  }
+}
