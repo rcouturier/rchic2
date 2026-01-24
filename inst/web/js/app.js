@@ -46,12 +46,34 @@ class RchicApp {
     // Load translations
     await window.i18n.load(window.i18n.locale);
 
+    // Set backend locale
+    try {
+      await fetch(`${this.apiBase}/locale`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locale: window.i18n.locale })
+      });
+    } catch (err) {
+      console.warn('Could not set backend locale:', err);
+    }
+
     // Language selector
     const langSelector = document.getElementById('lang-selector');
     if (langSelector) {
       langSelector.value = window.i18n.locale;
       langSelector.addEventListener('change', async (e) => {
-        await window.i18n.load(e.target.value);
+        const locale = e.target.value;
+        await window.i18n.load(locale);
+        // Update backend locale
+        try {
+          await fetch(`${this.apiBase}/locale`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ locale })
+          });
+        } catch (err) {
+          console.warn('Could not set backend locale:', err);
+        }
         // Update dynamic content
         this.updateDynamicTranslations();
       });

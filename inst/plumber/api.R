@@ -15,6 +15,99 @@ library(rchic)
 # Buffer pour les messages de la console
 .rchic_env$console_messages <- character(0)
 
+# Langue courante (defaut: francais)
+.rchic_env$locale <- "fr"
+
+# Traductions
+.rchic_env$translations <- list(
+  fr = list(
+    implicative_graph = "GRAPHE IMPLICATIF",
+    similarity_tree = "ARBRE DE SIMILARITE",
+    hierarchy_tree = "ARBRE HIERARCHIQUE",
+    date = "Date",
+    computing_mode = "Mode de calcul",
+    min_threshold = "Seuil minimum",
+    complete_graph = "Graphe complet",
+    contributions = "Contributions",
+    typicalities = "Typicalites",
+    yes = "Oui",
+    no = "Non",
+    selected_variables = "Variables selectionnees",
+    total_rules = "Regles totales analysees",
+    graph_nodes = "Noeuds dans le graphe",
+    graph_edges = "Aretes dans le graphe",
+    tree_levels = "Niveaux de l'arbre",
+    significant_nodes = "Noeuds significatifs",
+    final_nodes = "Noeuds finaux",
+    end_calculation = "FIN DU CALCUL",
+    error = "ERREUR"
+  ),
+  en = list(
+    implicative_graph = "IMPLICATIVE GRAPH",
+    similarity_tree = "SIMILARITY TREE",
+    hierarchy_tree = "HIERARCHY TREE",
+    date = "Date",
+    computing_mode = "Computing mode",
+    min_threshold = "Minimum threshold",
+    complete_graph = "Complete graph",
+    contributions = "Contributions",
+    typicalities = "Typicalities",
+    yes = "Yes",
+    no = "No",
+    selected_variables = "Selected variables",
+    total_rules = "Total rules analyzed",
+    graph_nodes = "Nodes in graph",
+    graph_edges = "Edges in graph",
+    tree_levels = "Tree levels",
+    significant_nodes = "Significant nodes",
+    final_nodes = "Final nodes",
+    end_calculation = "END OF CALCULATION",
+    error = "ERROR"
+  ),
+  pt = list(
+    implicative_graph = "GRAFO IMPLICATIVO",
+    similarity_tree = "ARVORE DE SIMILARIDADE",
+    hierarchy_tree = "ARVORE HIERARQUICA",
+    date = "Data",
+    computing_mode = "Modo de calculo",
+    min_threshold = "Limiar minimo",
+    complete_graph = "Grafo completo",
+    contributions = "Contribuicoes",
+    typicalities = "Tipicalidades",
+    yes = "Sim",
+    no = "Nao",
+    selected_variables = "Variaveis selecionadas",
+    total_rules = "Regras totais analisadas",
+    graph_nodes = "Nos no grafo",
+    graph_edges = "Arestas no grafo",
+    tree_levels = "Niveis da arvore",
+    significant_nodes = "Nos significativos",
+    final_nodes = "Nos finais",
+    end_calculation = "FIM DO CALCULO",
+    error = "ERRO"
+  )
+)
+
+# Fonction de traduction
+tr <- function(key) {
+  locale <- .rchic_env$locale
+  if (is.null(.rchic_env$translations[[locale]])) {
+    locale <- "fr"
+  }
+  result <- .rchic_env$translations[[locale]][[key]]
+  if (is.null(result)) {
+    return(key)
+  }
+  return(result)
+}
+
+# Fonction pour definir la langue
+set_locale <- function(locale) {
+  if (locale %in% names(.rchic_env$translations)) {
+    .rchic_env$locale <- locale
+  }
+}
+
 # Fonction pour ajouter un message a la console
 rchic_message <- function(...) {
   msg <- paste0(...)
@@ -81,6 +174,19 @@ function() {
 function() {
   rchic_clear_console()
   list(success = TRUE)
+}
+
+#* Definir la langue
+#* @param locale:str Code de langue (fr, en, pt)
+#* @post /api/locale
+function(locale = "fr", req) {
+  # Extraire locale du body JSON si present
+  if (!is.null(req$body$locale)) {
+    locale <- req$body$locale
+  }
+  set_locale(locale)
+  cat("Locale set to:", .rchic_env$locale, "\n")
+  list(success = TRUE, locale = .rchic_env$locale)
 }
 
 #* Liste des fichiers de donnees disponibles
@@ -239,13 +345,13 @@ function(threshold = 85, computing_mode = 1, complete_graph = FALSE, selected_va
 
     # Effacer les anciens messages et commencer le log
     rchic_clear_console()
-    rchic_message("=== GRAPHE IMPLICATIF ===")
-    rchic_message(paste("Date:", Sys.time()))
+    rchic_message(paste0("=== ", tr("implicative_graph"), " ==="))
+    rchic_message(paste0(tr("date"), ": ", Sys.time()))
 
     mode_names <- c("Classique", "Classique + Confiance", "Implifiance", "Entropique")
-    rchic_message(paste("Mode de calcul:", mode_names[computing_mode]))
-    rchic_message(paste("Seuil minimum:", threshold))
-    rchic_message(paste("Graphe complet:", ifelse(complete_graph, "Oui", "Non")))
+    rchic_message(paste0(tr("computing_mode"), ": ", mode_names[computing_mode]))
+    rchic_message(paste0(tr("min_threshold"), ": ", threshold))
+    rchic_message(paste0(tr("complete_graph"), ": ", ifelse(complete_graph, tr("yes"), tr("no"))))
 
     # Lire les regles calculees
     rules <- read.table(
@@ -329,12 +435,12 @@ function(threshold = 85, computing_mode = 1, complete_graph = FALSE, selected_va
 
     # Messages de resultats
     rchic_message("")
-    rchic_message(paste("Variables selectionnees:", length(selected_variables)))
-    rchic_message(paste("Regles totales analysees:", nrow(rules)))
-    rchic_message(paste("Noeuds dans le graphe:", length(nodes)))
-    rchic_message(paste("Aretes dans le graphe:", length(edges)))
+    rchic_message(paste0(tr("selected_variables"), ": ", length(selected_variables)))
+    rchic_message(paste0(tr("total_rules"), ": ", nrow(rules)))
+    rchic_message(paste0(tr("graph_nodes"), ": ", length(nodes)))
+    rchic_message(paste0(tr("graph_edges"), ": ", length(edges)))
     rchic_message("")
-    rchic_message("=== FIN DU CALCUL ===")
+    rchic_message(paste0("=== ", tr("end_calculation"), " ==="))
 
     list(
       success = TRUE,
@@ -346,7 +452,7 @@ function(threshold = 85, computing_mode = 1, complete_graph = FALSE, selected_va
       n_edges = length(edges)
     )
   }, error = function(e) {
-    rchic_message(paste("ERREUR:", e$message))
+    rchic_message(paste0(tr("error"), ": ", e$message))
     res$status <- 500
     list(success = FALSE, error = e$message)
   })
@@ -370,10 +476,10 @@ function(selected_variables = NULL, contribution_supp = FALSE, typicality_supp =
 
     # Effacer les anciens messages et commencer le log
     rchic_clear_console()
-    rchic_message("=== ARBRE DE SIMILARITE ===")
-    rchic_message(paste("Date:", Sys.time()))
-    rchic_message(paste("Contributions:", ifelse(contribution_supp, "Oui", "Non")))
-    rchic_message(paste("Typicalites:", ifelse(typicality_supp, "Oui", "Non")))
+    rchic_message(paste0("=== ", tr("similarity_tree"), " ==="))
+    rchic_message(paste0(tr("date"), ": ", Sys.time()))
+    rchic_message(paste0(tr("contributions"), ": ", ifelse(contribution_supp, tr("yes"), tr("no"))))
+    rchic_message(paste0(tr("typicalities"), ": ", ifelse(typicality_supp, tr("yes"), tr("no"))))
 
     list_variables <- .rchic_env$list_variables
     supplementary_variables <- .rchic_env$supplementary_variables
@@ -476,11 +582,11 @@ function(selected_variables = NULL, contribution_supp = FALSE, typicality_supp =
 
     # Messages de resultats
     rchic_message("")
-    rchic_message(paste("Variables selectionnees:", length(input_variables)))
-    rchic_message(paste("Niveaux de l'arbre:", nb_levels))
-    rchic_message(paste("Noeuds significatifs:", sum(significant_nodes[1:nb_levels])))
+    rchic_message(paste0(tr("selected_variables"), ": ", length(input_variables)))
+    rchic_message(paste0(tr("tree_levels"), ": ", nb_levels))
+    rchic_message(paste0(tr("significant_nodes"), ": ", sum(significant_nodes[1:nb_levels])))
     rchic_message("")
-    rchic_message("=== FIN DU CALCUL ===")
+    rchic_message(paste0("=== ", tr("end_calculation"), " ==="))
 
     list(
       success = TRUE,
@@ -497,7 +603,7 @@ function(selected_variables = NULL, contribution_supp = FALSE, typicality_supp =
       raw_variables = list_vars_raw
     )
   }, error = function(e) {
-    rchic_message(paste("ERREUR:", e$message))
+    rchic_message(paste0(tr("error"), ": ", e$message))
     res$status <- 500
     list(success = FALSE, error = e$message)
   })
@@ -522,13 +628,13 @@ function(computing_mode = 1, selected_variables = NULL, contribution_supp = FALS
 
     # Effacer les anciens messages et commencer le log
     rchic_clear_console()
-    rchic_message("=== ARBRE HIERARCHIQUE ===")
-    rchic_message(paste("Date:", Sys.time()))
+    rchic_message(paste0("=== ", tr("hierarchy_tree"), " ==="))
+    rchic_message(paste0(tr("date"), ": ", Sys.time()))
 
     mode_names <- c("Classique", "Classique + Confiance", "Implifiance")
-    rchic_message(paste("Mode de calcul:", mode_names[computing_mode]))
-    rchic_message(paste("Contributions:", ifelse(contribution_supp, "Oui", "Non")))
-    rchic_message(paste("Typicalites:", ifelse(typicality_supp, "Oui", "Non")))
+    rchic_message(paste0(tr("computing_mode"), ": ", mode_names[computing_mode]))
+    rchic_message(paste0(tr("contributions"), ": ", ifelse(contribution_supp, tr("yes"), tr("no"))))
+    rchic_message(paste0(tr("typicalities"), ": ", ifelse(typicality_supp, tr("yes"), tr("no"))))
 
     list_variables <- .rchic_env$list_variables
     supplementary_variables <- .rchic_env$supplementary_variables
@@ -643,12 +749,12 @@ function(computing_mode = 1, selected_variables = NULL, contribution_supp = FALS
 
     # Messages de resultats
     rchic_message("")
-    rchic_message(paste("Variables selectionnees:", length(input_variables)))
-    rchic_message(paste("Niveaux de l'arbre:", nb_levels))
-    rchic_message(paste("Noeuds significatifs:", sum(significant_nodes[1:nb_levels])))
-    rchic_message(paste("Noeuds finaux:", sum(final_nodes)))
+    rchic_message(paste0(tr("selected_variables"), ": ", length(input_variables)))
+    rchic_message(paste0(tr("tree_levels"), ": ", nb_levels))
+    rchic_message(paste0(tr("significant_nodes"), ": ", sum(significant_nodes[1:nb_levels])))
+    rchic_message(paste0(tr("final_nodes"), ": ", sum(final_nodes)))
     rchic_message("")
-    rchic_message("=== FIN DU CALCUL ===")
+    rchic_message(paste0("=== ", tr("end_calculation"), " ==="))
 
     list(
       success = TRUE,
@@ -667,7 +773,7 @@ function(computing_mode = 1, selected_variables = NULL, contribution_supp = FALS
       raw_variables = list_vars_raw
     )
   }, error = function(e) {
-    rchic_message(paste("ERREUR:", e$message))
+    rchic_message(paste0(tr("error"), ": ", e$message))
     res$status <- 500
     list(success = FALSE, error = e$message)
   })
