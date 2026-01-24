@@ -43,7 +43,7 @@
     "clear": "Clear"
   },
   "tabs": {
-    "graph": "Graph",
+    "visualization": "Visualization",
     "data": "Computation data"
   },
   "console": {
@@ -64,6 +64,8 @@
     "computeSuccess": "Computation complete",
     "computeError": "Computation error",
     "connectionError": "Server connection error",
-    "exportSuccess": "Export successful"
+    "exportSuccess": "Export successful",
+    "graphResult": "Graph: {nodes} nodes, {edges} edges",
+    "treeResult": "Tree: {variables} variables, {levels} levels"
   }
 }

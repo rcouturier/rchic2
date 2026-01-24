@@ -527,7 +527,7 @@ class RchicApp {
     this.cy.fit(null, 50);
 
     // Update info
-    this.showToast(`Graphe: ${data.n_nodes} noeuds, ${data.n_edges} aretes`, 'info');
+    this.showToast(window.i18n.t('messages.graphResult', { nodes: data.n_nodes, edges: data.n_edges }), 'info');
   }
 
   getEdgeColor(implication) {
@@ -779,7 +779,7 @@ class RchicApp {
 
     svg.call(zoom);
 
-    this.showToast(`Arbre: ${variablesOrder.length} variables, ${nbLevels} niveaux`, 'info');
+    this.showToast(window.i18n.t('messages.treeResult', { variables: variablesOrder.length, levels: nbLevels }), 'info');
   }
 
   // ==========================================================================

@@ -43,7 +43,7 @@
     "clear": "Effacer"
   },
   "tabs": {
-    "graph": "Graphique",
+    "visualization": "Visualisation",
     "data": "Données de calcul"
   },
   "console": {
@@ -64,6 +64,8 @@
     "computeSuccess": "Calcul terminé",
     "computeError": "Erreur lors du calcul",
     "connectionError": "Erreur de connexion au serveur",
-    "exportSuccess": "Export réussi"
+    "exportSuccess": "Export réussi",
+    "graphResult": "Graphe : {nodes} noeuds, {edges} arêtes",
+    "treeResult": "Arbre : {variables} variables, {levels} niveaux"
   }
 }
