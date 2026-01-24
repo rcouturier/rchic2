@@ -34,9 +34,59 @@ class RchicApp {
   }
 
   async init() {
+    // Initialize i18n first
+    await this.initI18n();
+
     this.bindEvents();
     this.initCytoscape();
     await this.checkConnection();
+  }
+
+  async initI18n() {
+    // Load translations
+    await window.i18n.load(window.i18n.locale);
+
+    // Language selector
+    const langSelector = document.getElementById('lang-selector');
+    if (langSelector) {
+      langSelector.value = window.i18n.locale;
+      langSelector.addEventListener('change', async (e) => {
+        await window.i18n.load(e.target.value);
+        // Update dynamic content
+        this.updateDynamicTranslations();
+      });
+    }
+  }
+
+  updateDynamicTranslations() {
+    // Update connection status
+    const indicator = document.getElementById('status-indicator');
+    if (indicator) {
+      const isConnected = indicator.classList.contains('connected');
+      indicator.textContent = window.i18n.t(isConnected ? 'status.connected' : 'status.disconnected');
+    }
+
+    // Update select options (not handled by data-i18n on options)
+    this.updateSelectOptions();
+  }
+
+  updateSelectOptions() {
+    // Computing mode select
+    const computingMode = document.getElementById('computing-mode');
+    if (computingMode) {
+      computingMode.options[0].text = window.i18n.t('options.classic');
+      computingMode.options[1].text = window.i18n.t('options.classicConfidence');
+      computingMode.options[2].text = window.i18n.t('options.implifiance');
+      computingMode.options[3].text = window.i18n.t('options.entropic');
+    }
+
+    // Hierarchy mode select
+    const hierarchyMode = document.getElementById('hierarchy-mode');
+    if (hierarchyMode) {
+      hierarchyMode.options[0].text = window.i18n.t('options.classic');
+      hierarchyMode.options[1].text = window.i18n.t('options.classicConfidence');
+      hierarchyMode.options[2].text = window.i18n.t('options.implifiance');
+    }
   }
 
   // ==========================================================================
@@ -153,10 +203,10 @@ class RchicApp {
   setConnectionStatus(connected) {
     const indicator = document.getElementById('status-indicator');
     if (connected) {
-      indicator.textContent = 'Connecte';
+      indicator.textContent = window.i18n.t('status.connected');
       indicator.className = 'status connected';
     } else {
-      indicator.textContent = 'Deconnecte';
+      indicator.textContent = window.i18n.t('status.disconnected');
       indicator.className = 'status disconnected';
     }
   }
@@ -222,12 +272,12 @@ class RchicApp {
         // Reset visualization (hide previous results)
         this.resetVisualization();
 
-        this.showToast('Fichier charge avec succes', 'success');
+        this.showToast(window.i18n.t('messages.fileLoaded'), 'success');
       } else {
         throw new Error(result.error || 'Upload failed');
       }
     } catch (e) {
-      this.showToast('Erreur: ' + e.message, 'error');
+      this.showToast(window.i18n.t('messages.connectionError') + ': ' + e.message, 'error');
     } finally {
       this.showLoading(false);
     }
@@ -287,7 +337,7 @@ class RchicApp {
       await this.fetchConsoleMessages();
 
     } catch (e) {
-      this.showToast('Erreur de calcul: ' + e.message, 'error');
+      this.showToast(window.i18n.t('messages.computeError') + ': ' + e.message, 'error');
     } finally {
       this.showLoading(false);
     }
@@ -776,7 +826,7 @@ class RchicApp {
     // Show placeholder with updated message
     const placeholder = document.getElementById('placeholder');
     placeholder.classList.remove('hidden');
-    placeholder.innerHTML = '<p>Cliquez sur Calculer pour lancer l\'analyse</p>';
+    placeholder.querySelector('p').textContent = window.i18n.t('messages.loadFilePrompt');
 
     // Hide info panel
     document.getElementById('info-panel').classList.add('hidden');
@@ -894,7 +944,7 @@ class RchicApp {
       }
     }
 
-    this.showToast('Export termine', 'success');
+    this.showToast(window.i18n.t('messages.exportSuccess'), 'success');
   }
 
   // ==========================================================================
@@ -948,7 +998,7 @@ class RchicApp {
     const outputEl = document.getElementById('console-output');
 
     if (!messages || messages.length === 0) {
-      outputEl.innerHTML = '<p class="text-muted">Lancez un calcul pour voir les messages</p>';
+      outputEl.innerHTML = `<p class="text-muted">${window.i18n.t('messages.runCalculation')}</p>`;
       return;
     }
 
@@ -980,7 +1030,7 @@ class RchicApp {
   async clearConsole() {
     try {
       await fetch(`${this.apiBase}/console/clear`, { method: 'POST' });
-      document.getElementById('console-output').innerHTML = '<p class="text-muted">Console effacee</p>';
+      document.getElementById('console-output').innerHTML = `<p class="text-muted">${window.i18n.t('messages.runCalculation')}</p>`;
     } catch (e) {
       console.error('Error clearing console:', e);
     }

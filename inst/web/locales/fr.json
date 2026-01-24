@@ -1,0 +1,69 @@
+{
+  "app": {
+    "title": "RCHIC",
+    "subtitle": "Analyse Statistique Implicative"
+  },
+  "status": {
+    "connected": "Connecté",
+    "disconnected": "Déconnecté"
+  },
+  "data": {
+    "title": "Données",
+    "loadFile": "Charger un fichier CSV",
+    "file": "Fichier",
+    "observations": "Observations",
+    "variables": "Variables"
+  },
+  "analysis": {
+    "title": "Type d'analyse",
+    "implicative": "Graphe Implicatif",
+    "similarity": "Arbre de Similarité",
+    "hierarchy": "Arbre Hiérarchique"
+  },
+  "options": {
+    "graphTitle": "Options du graphe",
+    "hierarchyTitle": "Options de la hiérarchie",
+    "similarityTitle": "Options de similarité",
+    "computingMode": "Mode de calcul",
+    "classic": "Classique",
+    "classicConfidence": "Classique + Confiance",
+    "implifiance": "Implifiance",
+    "entropic": "Entropique",
+    "completeGraph": "Graphe complet (a⇒b et b⇒a)",
+    "thresholds": "Seuils",
+    "showConfidence": "Afficher la confiance",
+    "noOptions": "Aucune option supplémentaire"
+  },
+  "actions": {
+    "compute": "Calculer",
+    "export": "Exporter PNG",
+    "selectAll": "Tout",
+    "selectNone": "Aucun",
+    "refresh": "Actualiser",
+    "clear": "Effacer"
+  },
+  "tabs": {
+    "graph": "Graphique",
+    "data": "Données de calcul"
+  },
+  "console": {
+    "title": "Console R"
+  },
+  "variables": {
+    "title": "Variables"
+  },
+  "details": {
+    "title": "Détails"
+  },
+  "messages": {
+    "loadFilePrompt": "Chargez un fichier CSV pour commencer l'analyse",
+    "computing": "Calcul en cours...",
+    "noData": "Aucune donnée chargée",
+    "runCalculation": "Lancez un calcul pour voir les messages",
+    "fileLoaded": "Fichier chargé avec succès",
+    "computeSuccess": "Calcul terminé",
+    "computeError": "Erreur lors du calcul",
+    "connectionError": "Erreur de connexion au serveur",
+    "exportSuccess": "Export réussi"
+  }
+}

@@ -12,17 +12,23 @@
   <script src="js/lib/cytoscape-dagre.js"></script>
   <!-- D3.js pour les arbres (local) -->
   <script src="js/lib/d3.v7.min.js"></script>
+  <!-- i18n -->
+  <script src="js/i18n.js"></script>
 </head>
 <body>
   <div id="app">
     <!-- Header -->
     <header class="header">
       <div class="header-left">
-        <h1>RCHIC</h1>
-        <span class="subtitle">Analyse Statistique Implicative</span>
+        <h1 data-i18n="app.title">RCHIC</h1>
+        <span class="subtitle" data-i18n="app.subtitle">Analyse Statistique Implicative</span>
       </div>
       <div class="header-right">
-        <span id="status-indicator" class="status disconnected">Deconnecte</span>
+        <select id="lang-selector" class="lang-selector">
+          <option value="fr">FR</option>
+          <option value="en">EN</option>
+        </select>
+        <span id="status-indicator" class="status disconnected" data-i18n="status.disconnected">Deconnecte</span>
       </div>
     </header>
 
@@ -32,41 +38,41 @@
       <aside class="sidebar">
         <!-- File section -->
         <section class="sidebar-section">
-          <h3>Donnees</h3>
+          <h3 data-i18n="data.title">Donnees</h3>
           <div class="file-input-wrapper">
             <input type="file" id="file-input" accept=".csv" hidden>
-            <button id="btn-load" class="btn btn-primary btn-block">
+            <button id="btn-load" class="btn btn-primary btn-block" data-i18n="data.loadFile">
               Charger un fichier CSV
             </button>
           </div>
           <div id="file-info" class="file-info hidden">
-            <p><strong>Fichier:</strong> <span id="filename"></span></p>
-            <p><strong>Observations:</strong> <span id="n-rows"></span></p>
-            <p><strong>Variables:</strong> <span id="n-vars"></span></p>
+            <p><strong data-i18n="data.file">Fichier</strong>: <span id="filename"></span></p>
+            <p><strong data-i18n="data.observations">Observations</strong>: <span id="n-rows"></span></p>
+            <p><strong data-i18n="data.variables">Variables</strong>: <span id="n-vars"></span></p>
           </div>
         </section>
 
         <!-- Compute button (hidden until file loaded) -->
         <section id="compute-section" class="sidebar-section hidden">
-          <button id="btn-compute" class="btn btn-success btn-block">
+          <button id="btn-compute" class="btn btn-success btn-block" data-i18n="actions.compute">
             Calculer
           </button>
-          <button id="btn-export" class="btn btn-secondary btn-block" disabled>
+          <button id="btn-export" class="btn btn-secondary btn-block" disabled data-i18n="actions.export">
             Exporter PNG
           </button>
         </section>
 
         <!-- Analysis type (hidden until file loaded) -->
         <section id="analysis-type-section" class="sidebar-section hidden">
-          <h3>Type d'analyse</h3>
+          <h3 data-i18n="analysis.title">Type d'analyse</h3>
           <div class="btn-group-vertical">
-            <button id="btn-implicative" class="btn btn-analysis active" data-type="implicative">
+            <button id="btn-implicative" class="btn btn-analysis active" data-type="implicative" data-i18n="analysis.implicative">
               Graphe Implicatif
             </button>
-            <button id="btn-similarity" class="btn btn-analysis" data-type="similarity">
+            <button id="btn-similarity" class="btn btn-analysis" data-type="similarity" data-i18n="analysis.similarity">
               Arbre de Similarite
             </button>
-            <button id="btn-hierarchy" class="btn btn-analysis" data-type="hierarchy">
+            <button id="btn-hierarchy" class="btn btn-analysis" data-type="hierarchy" data-i18n="analysis.hierarchy">
               Arbre Hierarchique
             </button>
           </div>
@@ -74,26 +80,26 @@
 
         <!-- Options panel - Implicative Graph (hidden until implicative selected) -->
         <section id="options-implicative" class="sidebar-section options-panel hidden">
-          <h3>Options du graphe</h3>
+          <h3 data-i18n="options.graphTitle">Options du graphe</h3>
 
           <div class="form-group">
-            <label for="computing-mode">Mode de calcul</label>
+            <label for="computing-mode" data-i18n="options.computingMode">Mode de calcul</label>
             <select id="computing-mode" class="form-control">
-              <option value="1">Classique</option>
-              <option value="2">Classique + Confiance</option>
-              <option value="3">Implifiance</option>
-              <option value="4">Entropique</option>
+              <option value="1" data-i18n="options.classic">Classique</option>
+              <option value="2" data-i18n="options.classicConfidence">Classique + Confiance</option>
+              <option value="3" data-i18n="options.implifiance">Implifiance</option>
+              <option value="4" data-i18n="options.entropic">Entropique</option>
             </select>
           </div>
 
           <div class="form-group">
             <label>
               <input type="checkbox" id="complete-graph">
-              Graphe complet (a=>b et b=>a)
+              <span data-i18n="options.completeGraph">Graphe complet (a=>b et b=>a)</span>
             </label>
           </div>
 
-          <h4>Seuils</h4>
+          <h4 data-i18n="options.thresholds">Seuils</h4>
           <div class="threshold-controls">
             <div class="threshold-row">
               <input type="checkbox" id="th1-check" checked>
@@ -124,28 +130,28 @@
           <div class="form-group">
             <label>
               <input type="checkbox" id="show-confidence">
-              Afficher la confiance
+              <span data-i18n="options.showConfidence">Afficher la confiance</span>
             </label>
           </div>
         </section>
 
         <!-- Options panel - Hierarchy -->
         <section id="options-hierarchy" class="sidebar-section options-panel hidden">
-          <h3>Options de la hierarchie</h3>
+          <h3 data-i18n="options.hierarchyTitle">Options de la hierarchie</h3>
           <div class="form-group">
-            <label for="hierarchy-mode">Mode de calcul</label>
+            <label for="hierarchy-mode" data-i18n="options.computingMode">Mode de calcul</label>
             <select id="hierarchy-mode" class="form-control">
-              <option value="1">Classique</option>
-              <option value="2">Classique + Confiance</option>
-              <option value="3">Implifiance</option>
+              <option value="1" data-i18n="options.classic">Classique</option>
+              <option value="2" data-i18n="options.classicConfidence">Classique + Confiance</option>
+              <option value="3" data-i18n="options.implifiance">Implifiance</option>
             </select>
           </div>
         </section>
 
         <!-- Options panel - Similarity -->
         <section id="options-similarity" class="sidebar-section options-panel hidden">
-          <h3>Options de similarite</h3>
-          <p class="text-muted">Aucune option supplementaire</p>
+          <h3 data-i18n="options.similarityTitle">Options de similarite</h3>
+          <p class="text-muted" data-i18n="options.noOptions">Aucune option supplementaire</p>
         </section>
       </aside>
 
@@ -153,15 +159,15 @@
       <main class="visualization-area">
         <!-- Tab navigation -->
         <div class="tab-navigation">
-          <button id="tab-graph" class="tab-btn active" data-tab="graph">Graphique</button>
-          <button id="tab-data" class="tab-btn" data-tab="data">Donnees de calcul</button>
+          <button id="tab-graph" class="tab-btn active" data-tab="graph" data-i18n="tabs.graph">Graphique</button>
+          <button id="tab-data" class="tab-btn" data-tab="data" data-i18n="tabs.data">Donnees de calcul</button>
         </div>
 
         <!-- Tab content: Graphique -->
         <div id="tab-content-graph" class="tab-content active">
           <div id="viz-container">
             <div id="placeholder" class="placeholder">
-              <p>Chargez un fichier CSV pour commencer l'analyse</p>
+              <p data-i18n="messages.loadFilePrompt">Chargez un fichier CSV pour commencer l'analyse</p>
             </div>
             <div id="graph-container" class="hidden"></div>
             <div id="tree-container" class="hidden"></div>
@@ -169,7 +175,7 @@
 
           <!-- Info panel -->
           <div id="info-panel" class="info-panel hidden">
-            <h4>Details</h4>
+            <h4 data-i18n="details.title">Details</h4>
             <div id="info-content"></div>
           </div>
         </div>
@@ -178,14 +184,14 @@
         <div id="tab-content-data" class="tab-content hidden">
           <div class="console-panel">
             <div class="console-header">
-              <h3>Console R</h3>
+              <h3 data-i18n="console.title">Console R</h3>
               <div class="console-controls">
-                <button id="btn-refresh-console" class="btn btn-secondary btn-sm">Actualiser</button>
-                <button id="btn-clear-console" class="btn btn-secondary btn-sm">Effacer</button>
+                <button id="btn-refresh-console" class="btn btn-secondary btn-sm" data-i18n="actions.refresh">Actualiser</button>
+                <button id="btn-clear-console" class="btn btn-secondary btn-sm" data-i18n="actions.clear">Effacer</button>
               </div>
             </div>
             <div id="console-output" class="console-output">
-              <p class="text-muted">Lancez un calcul pour voir les messages</p>
+              <p class="text-muted" data-i18n="messages.runCalculation">Lancez un calcul pour voir les messages</p>
             </div>
           </div>
         </div>
@@ -194,14 +200,14 @@
       <!-- Variables panel -->
       <aside class="variables-panel">
         <div class="panel-header">
-          <h3>Variables</h3>
+          <h3 data-i18n="variables.title">Variables</h3>
           <div class="panel-actions">
-            <button id="btn-select-all" class="btn btn-sm" title="Tout selectionner">Tout</button>
-            <button id="btn-deselect-all" class="btn btn-sm" title="Tout deselectionner">Aucun</button>
+            <button id="btn-select-all" class="btn btn-sm" data-i18n="actions.selectAll" data-i18n-title="actions.selectAll">Tout</button>
+            <button id="btn-deselect-all" class="btn btn-sm" data-i18n="actions.selectNone" data-i18n-title="actions.selectNone">Aucun</button>
           </div>
         </div>
         <div id="variables-list" class="variables-list">
-          <p class="text-muted">Aucune donnee chargee</p>
+          <p class="text-muted" data-i18n="messages.noData">Aucune donnee chargee</p>
         </div>
       </aside>
     </div>
@@ -209,7 +215,7 @@
     <!-- Loading overlay -->
     <div id="loading" class="loading-overlay hidden">
       <div class="spinner"></div>
-      <p>Calcul en cours...</p>
+      <p data-i18n="messages.computing">Calcul en cours...</p>
     </div>
 
     <!-- Toast notifications -->
