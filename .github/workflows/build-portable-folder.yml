@@ -99,10 +99,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create ZIP archive
+      - name: Rename and create ZIP archive
         run: |
           cd electron/dist-portable-folder
-          zip -r Rchic2-Portable-Linux.zip linux-unpacked
+          mv linux-unpacked Rchic2-Linux
+          zip -r Rchic2-Portable-Linux.zip Rchic2-Linux
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -438,20 +439,29 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Prepare .app for upload
+      - name: Rename and create ZIP archive
         run: |
           # Find the .app bundle
           APP_PATH=$(find electron/dist-portable-folder -maxdepth 2 -name "*.app" -type d | head -1)
           echo "Found app at: $APP_PATH"
-          # Create upload directory and move .app into it
-          mkdir -p electron/dist-portable-folder/upload
-          mv "$APP_PATH" electron/dist-portable-folder/upload/
+
+          # Create directory with appropriate name based on architecture
+          ARCH_NAME="${{ matrix.arch-name }}"
+          FOLDER_NAME="Rchic2-macOS-${ARCH_NAME}"
+          mkdir -p "electron/dist-portable-folder/${FOLDER_NAME}"
+
+          # Move .app into the named folder
+          mv "$APP_PATH" "electron/dist-portable-folder/${FOLDER_NAME}/"
+
+          # Create ZIP archive
+          cd electron/dist-portable-folder
+          zip -r "Rchic2-Portable-macOS-${ARCH_NAME}.zip" "${FOLDER_NAME}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: Rchic2-Portable-macOS-${{ matrix.arch-name }}
-          path: electron/dist-portable-folder/upload/
+          path: electron/dist-portable-folder/Rchic2-Portable-macOS-${{ matrix.arch-name }}.zip
           retention-days: 30
 
   # ============================================================================
@@ -557,11 +567,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create ZIP archive
+      - name: Rename and create ZIP archive
         shell: pwsh
         run: |
           cd electron/dist-portable-folder
-          Compress-Archive -Path win-unpacked -DestinationPath Rchic2-Portable-Windows.zip
+          Rename-Item -Path win-unpacked -NewName Rchic2-Windows
+          Compress-Archive -Path Rchic2-Windows -DestinationPath Rchic2-Portable-Windows.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -609,14 +620,14 @@ jobs:
             1. Download the ZIP for your platform
             2. Extract the archive
             3. Run the executable:
-               - Linux: `./Rchic2`
-               - macOS: Open `Rchic2.app`
-               - Windows: Run `Rchic2.exe`
+               - Linux: Navigate to the extracted folder and run `./Rchic2`
+               - macOS: Navigate to the extracted folder, open `Rchic2.app`
+               - Windows: Navigate to the extracted folder and run `Rchic2.exe`
           files: |
-            artifacts/Rchic2-Portable-Linux/Rchic2-Portable-Linux.zip
-            artifacts/Rchic2-Portable-macOS-Intel/Rchic2-Portable-macOS-Intel.zip
-            artifacts/Rchic2-Portable-macOS-ARM/Rchic2-Portable-macOS-ARM.zip
-            artifacts/Rchic2-Portable-Windows/Rchic2-Portable-Windows.zip
+            artifacts/Rchic2-Portable-Linux/*.zip
+            artifacts/Rchic2-Portable-macOS-Intel/*.zip
+            artifacts/Rchic2-Portable-macOS-ARM/*.zip
+            artifacts/Rchic2-Portable-Windows/*.zip
           draft: false
           prerelease: false
         env:
