@@ -1,0 +1,4 @@
+#!/bin/bash
+# Wrapper script for R on macOS
+# Handles both Intel and ARM architectures
+exec "${0%/*}/../R.framework/Resources/bin/Rscript" "$@"

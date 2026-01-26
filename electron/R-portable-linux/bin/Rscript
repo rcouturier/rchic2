@@ -1,0 +1,3 @@
+#!/bin/bash
+# Wrapper script for R on Linux
+exec "${0%/*}/../lib/R/bin/Rscript" "$@"

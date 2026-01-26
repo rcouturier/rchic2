@@ -14,10 +14,21 @@ electron/dist/
 electron/dist-standalone/
 electron/dist-standalone-mac/
 electron/dist-standalone-linux/
+
+# R portable binaries (ignore actual binaries, keep scripts & docs)
 electron/R-portable/
-electron/R-portable-mac/
-electron/R-portable-win/
-electron/R-portable-linux/
+electron/R-portable-mac/*
+!electron/R-portable-mac/bin/
+!electron/R-portable-mac/bin/Rscript
+!electron/R-portable-mac/*.md
+electron/R-portable-win/*
+!electron/R-portable-win/bin/
+!electron/R-portable-win/bin/Rscript.exe
+!electron/R-portable-win/*.md
+electron/R-portable-linux/*
+!electron/R-portable-linux/bin/
+!electron/R-portable-linux/bin/Rscript
+!electron/R-portable-linux/*.md
 
 # OS
 .DS_Store
