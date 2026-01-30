@@ -20,6 +20,8 @@ electron/R-portable/
 electron/R-portable-mac/*
 !electron/R-portable-mac/bin/
 !electron/R-portable-mac/bin/Rscript
+!electron/R-portable-mac/R.framework/
+!electron/R-portable-mac/R.framework/**
 !electron/R-portable-mac/*.md
 electron/R-portable-win/*
 !electron/R-portable-win/bin/
