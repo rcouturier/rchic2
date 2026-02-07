@@ -187,6 +187,17 @@ class RchicApp {
       });
     }
 
+    // Show/hide similarity option for similarity tree
+    const showSimilarityCheckbox = document.getElementById('show-similarity');
+    if (showSimilarityCheckbox) {
+      showSimilarityCheckbox.addEventListener('change', () => {
+        if (this.currentAnalysis === 'similarity' && this.currentData) {
+          const showSimilarity = showSimilarityCheckbox.checked;
+          this.renderTree(this.currentData, 'similarity', showSimilarity);
+        }
+      });
+    }
+
     // Variable selection
     document.getElementById('btn-select-all').addEventListener('click', () => {
       this.selectAllVariables(true);
@@ -361,7 +372,8 @@ class RchicApp {
           result = await this.computeSimilarity(selectedVars);
           // Wait for container to have valid dimensions
           await this.waitForContainer();
-          this.renderTree(result, 'similarity');
+          const showSimilarity = document.getElementById('show-similarity').checked;
+          this.renderTree(result, 'similarity', showSimilarity);
           break;
 
         case 'hierarchy':
@@ -721,6 +733,8 @@ class RchicApp {
     const variableRight = data.variable_right;    // Original indices (1-based)
     const significant = data.significant;
     const cohesionLevels = data.cohesion_levels || [];
+    const similarityLevels = data.similarity_levels || [];
+    const valuesToShow = type === 'hierarchy' ? cohesionLevels : similarityLevels;
     const nbLevels = Array.isArray(data.nb_levels) ? data.nb_levels[0] : data.nb_levels;
 
     // Create mapping from original variable index (1-based) to display position (1-based)
@@ -799,10 +813,10 @@ class RchicApp {
         .attr('stroke', '#555')
         .attr('stroke-width', 2);
 
-      // Display cohesion value at merge point (BEFORE arrow so arrow is on top)
-      if (showCohesion && cohesionLevels.length > level) {
+      // Display cohesion/similarity value at merge point (BEFORE arrow so arrow is on top)
+      if (showCohesion && valuesToShow.length > level) {
         const midX = (offsetX[leftOrigIdx] + offsetX[rightOrigIdx]) / 2;
-        const cohesionText = cohesionLevels[level].toFixed(2);
+        const valueText = valuesToShow[level].toFixed(2);
 
         // Add background rectangle for better readability
         g.append('rect')
@@ -825,7 +839,7 @@ class RchicApp {
           .style('font-size', '12px')
           .style('font-weight', '600')
           .style('fill', isSignificant ? '#e74c3c' : '#333')
-          .text(cohesionText);
+          .text(valueText);
       }
 
       // Arrow for hierarchy tree (pointing right) - drawn AFTER cohesion so it's on top

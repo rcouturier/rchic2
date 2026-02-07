@@ -33,6 +33,7 @@
     "thresholds": "Seuils",
     "showConfidence": "Afficher la confiance",
     "showCohesion": "Afficher les cohésions",
+    "showSimilarity": "Afficher les similarités",
     "noOptions": "Aucune option supplémentaire"
   },
   "actions": {

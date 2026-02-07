@@ -571,6 +571,8 @@ function(selected_variables = NULL, contribution_supp = FALSE, typicality_supp =
     variable_right <- result[[3]]         # Ex: c(3, 4, 5, 3)
     nb_levels <- result[[4]]
     significant_nodes <- result[[5]]
+    similarity_levels <- result[[6]]
+    string_levels <- result[[7]]
 
     # Parser pour obtenir l'ordre des variables feuilles
     list_vars_clean <- gsub("[()]", "", list_vars_raw)
@@ -586,6 +588,13 @@ function(selected_variables = NULL, contribution_supp = FALSE, typicality_supp =
     rchic_message(paste0(tr("tree_levels"), ": ", nb_levels))
     rchic_message(paste0(tr("significant_nodes"), ": ", sum(significant_nodes[1:nb_levels])))
     rchic_message("")
+
+    # Afficher la similarité de chaque classe
+    for (i in seq_len(nb_levels)) {
+      rchic_message(paste0("Classification ", i, " : ", string_levels[i],
+                           "  Similarity ", round(similarity_levels[i], 4)))
+    }
+    rchic_message("")
     rchic_message(paste0("=== ", tr("end_calculation"), " ==="))
 
     list(
@@ -598,6 +607,7 @@ function(selected_variables = NULL, contribution_supp = FALSE, typicality_supp =
       variable_right = as.integer(variable_right),
       nb_levels = nb_levels,
       significant = as.integer(significant_nodes[1:nb_levels]),
+      similarity_levels = round(similarity_levels, 4),
       # Format structuré (pour debug)
       raw_indexes = list_indexes_raw,
       raw_variables = list_vars_raw

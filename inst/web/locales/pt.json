@@ -33,6 +33,7 @@
     "thresholds": "Limiares",
     "showConfidence": "Mostrar confiança",
     "showCohesion": "Mostrar valores de coesão",
+    "showSimilarity": "Mostrar similaridades",
     "noOptions": "Sem opções adicionais"
   },
   "actions": {
