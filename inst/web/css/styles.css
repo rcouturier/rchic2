@@ -224,6 +224,34 @@ body {
   color: var(--text-color);
 }
 
+/* Labels with checkbox - override to inline */
+.form-group label input[type="checkbox"] ~ span {
+  display: inline;
+  margin-bottom: 0;
+}
+
+.form-group input[type="checkbox"] {
+  display: inline-block;
+  margin-right: 8px;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.form-group label:not([for]) {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 0;
+  cursor: pointer;
+}
+
+.form-group label span {
+  display: inline;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
 .form-control {
   width: 100%;
   padding: 8px 12px;

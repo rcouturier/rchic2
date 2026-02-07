@@ -739,6 +739,8 @@ function(computing_mode = 1, selected_variables = NULL, contribution_supp = FALS
     nb_levels <- result[[4]]
     significant_nodes <- result[[5]]
     final_nodes <- result[[6]]
+    cohesion_levels <- result[[7]]
+    string_levels <- result[[8]]
 
     # Parser pour obtenir l'ordre des variables feuilles
     list_vars_clean <- gsub("[()]", "", list_vars_raw)
@@ -754,6 +756,13 @@ function(computing_mode = 1, selected_variables = NULL, contribution_supp = FALS
     rchic_message(paste0(tr("significant_nodes"), ": ", sum(significant_nodes[1:nb_levels])))
     rchic_message(paste0(tr("final_nodes"), ": ", sum(final_nodes)))
     rchic_message("")
+
+    # Afficher la cohesion de chaque classe
+    for (i in seq_len(nb_levels)) {
+      rchic_message(paste0("Classification ", i, " : ", string_levels[i],
+                           "  Cohesion ", round(cohesion_levels[i], 4)))
+    }
+    rchic_message("")
     rchic_message(paste0("=== ", tr("end_calculation"), " ==="))
 
     list(
@@ -768,6 +777,7 @@ function(computing_mode = 1, selected_variables = NULL, contribution_supp = FALS
       nb_levels = nb_levels,
       significant = as.integer(significant_nodes[1:nb_levels]),
       final_nodes = as.integer(final_nodes),
+      cohesion_levels = round(cohesion_levels, 4),
       # Format structuré (pour debug)
       raw_indexes = list_indexes_raw,
       raw_variables = list_vars_raw

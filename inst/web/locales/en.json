@@ -32,6 +32,7 @@
     "completeGraph": "Complete graph (a⇒b and b⇒a)",
     "thresholds": "Thresholds",
     "showConfidence": "Show confidence",
+    "showCohesion": "Show cohesion",
     "noOptions": "No additional options"
   },
   "actions": {

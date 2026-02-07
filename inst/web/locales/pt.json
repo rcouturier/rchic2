@@ -32,6 +32,7 @@
     "completeGraph": "Grafo completo (a⇒b e b⇒a)",
     "thresholds": "Limiares",
     "showConfidence": "Mostrar confiança",
+    "showCohesion": "Mostrar valores de coesão",
     "noOptions": "Sem opções adicionais"
   },
   "actions": {

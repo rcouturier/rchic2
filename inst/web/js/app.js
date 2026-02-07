@@ -176,6 +176,17 @@ class RchicApp {
       });
     }
 
+    // Show/hide cohesion option for hierarchy
+    const showCohesionCheckbox = document.getElementById('show-cohesion');
+    if (showCohesionCheckbox) {
+      showCohesionCheckbox.addEventListener('change', () => {
+        if (this.currentAnalysis === 'hierarchy' && this.currentData) {
+          const showCohesion = showCohesionCheckbox.checked;
+          this.renderTree(this.currentData, 'hierarchy', showCohesion);
+        }
+      });
+    }
+
     // Variable selection
     document.getElementById('btn-select-all').addEventListener('click', () => {
       this.selectAllVariables(true);
@@ -357,7 +368,8 @@ class RchicApp {
           result = await this.computeHierarchy(selectedVars);
           // Wait for container to have valid dimensions
           await this.waitForContainer();
-          this.renderTree(result, 'hierarchy');
+          const showCohesion = document.getElementById('show-cohesion').checked;
+          this.renderTree(result, 'hierarchy', showCohesion);
           break;
       }
 
@@ -674,7 +686,7 @@ class RchicApp {
   // Tree Rendering (D3.js)
   // ==========================================================================
 
-  renderTree(data, type) {
+  renderTree(data, type, showCohesion = true) {
     // Show tree container
     document.getElementById('placeholder').classList.add('hidden');
     document.getElementById('graph-container').classList.add('hidden');
@@ -708,6 +720,7 @@ class RchicApp {
     const variableLeft = data.variable_left;      // Original indices (1-based)
     const variableRight = data.variable_right;    // Original indices (1-based)
     const significant = data.significant;
+    const cohesionLevels = data.cohesion_levels || [];
     const nbLevels = Array.isArray(data.nb_levels) ? data.nb_levels[0] : data.nb_levels;
 
     // Create mapping from original variable index (1-based) to display position (1-based)
@@ -786,7 +799,36 @@ class RchicApp {
         .attr('stroke', '#555')
         .attr('stroke-width', 2);
 
-      // Arrow for hierarchy tree (pointing right)
+      // Display cohesion value at merge point (BEFORE arrow so arrow is on top)
+      if (showCohesion && cohesionLevels.length > level) {
+        const midX = (offsetX[leftOrigIdx] + offsetX[rightOrigIdx]) / 2;
+        const cohesionText = cohesionLevels[level].toFixed(2);
+
+        // Add background rectangle for better readability
+        g.append('rect')
+          .attr('x', midX - 22)
+          .attr('y', y2 + 8)
+          .attr('width', 44)
+          .attr('height', 18)
+          .attr('rx', 4)
+          .style('fill', 'white')
+          .style('stroke', isSignificant ? '#e74c3c' : '#999')
+          .style('stroke-width', 1.5)
+          .style('opacity', 0.85);
+
+        // Add text
+        g.append('text')
+          .attr('x', midX)
+          .attr('y', y2 + 17)
+          .attr('text-anchor', 'middle')
+          .attr('dominant-baseline', 'middle')
+          .style('font-size', '12px')
+          .style('font-weight', '600')
+          .style('fill', isSignificant ? '#e74c3c' : '#333')
+          .text(cohesionText);
+      }
+
+      // Arrow for hierarchy tree (pointing right) - drawn AFTER cohesion so it's on top
       if (type === 'hierarchy') {
         g.append('polygon')
           .attr('points', `${offsetX[rightOrigIdx]-5},${y2-5} ${offsetX[rightOrigIdx]},${y2} ${offsetX[rightOrigIdx]-5},${y2+5}`)
