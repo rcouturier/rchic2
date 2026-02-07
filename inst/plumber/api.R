@@ -527,7 +527,7 @@ function(selected_variables = NULL, contribution_supp = FALSE, typicality_supp =
       rule_parts <- strsplit(row.names(rules)[i], split = ' -> ')[[1]]
       from <- rule_parts[1]
       to <- rule_parts[2]
-      val <- rules[i, 7]  # Similarite
+      val <- rules[i, 8]  # Similarité classique (colonne 8)
       if (from %in% list_variables && to %in% list_variables) {
         similarity_matrix[from, to] <- val
         list_occurrences[from] <- rules[i, 1]
