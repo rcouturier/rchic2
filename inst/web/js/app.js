@@ -779,6 +779,9 @@ class RchicApp {
         .text(v);
     });
 
+    // Collect cohesion/similarity values to display AFTER drawing all lines
+    const cohesionToDisplay = [];
+
     // Draw tree edges - tree grows DOWNWARD from top
     for (let level = 0; level < nbLevels; level++) {
       const leftOrigIdx = variableLeft[level];   // Original variable index
@@ -813,40 +816,23 @@ class RchicApp {
         .attr('stroke', '#555')
         .attr('stroke-width', 2);
 
-      // Display cohesion/similarity value at merge point (BEFORE arrow so arrow is on top)
-      if (showCohesion && valuesToShow.length > level) {
-        const midX = (offsetX[leftOrigIdx] + offsetX[rightOrigIdx]) / 2;
-        const valueText = valuesToShow[level].toFixed(2);
-
-        // Add background rectangle for better readability
-        g.append('rect')
-          .attr('x', midX - 22)
-          .attr('y', y2 + 8)
-          .attr('width', 44)
-          .attr('height', 18)
-          .attr('rx', 4)
-          .style('fill', 'white')
-          .style('stroke', isSignificant ? '#e74c3c' : '#999')
-          .style('stroke-width', 1.5)
-          .style('opacity', 0.85);
-
-        // Add text
-        g.append('text')
-          .attr('x', midX)
-          .attr('y', y2 + 17)
-          .attr('text-anchor', 'middle')
-          .attr('dominant-baseline', 'middle')
-          .style('font-size', '12px')
-          .style('font-weight', '600')
-          .style('fill', isSignificant ? '#e74c3c' : '#333')
-          .text(valueText);
-      }
-
-      // Arrow for hierarchy tree (pointing right) - drawn AFTER cohesion so it's on top
+      // Arrow for hierarchy tree (pointing right)
       if (type === 'hierarchy') {
         g.append('polygon')
           .attr('points', `${offsetX[rightOrigIdx]-5},${y2-5} ${offsetX[rightOrigIdx]},${y2} ${offsetX[rightOrigIdx]-5},${y2+5}`)
           .attr('fill', isSignificant ? '#e74c3c' : '#555');
+      }
+
+      // Collect cohesion/similarity value to display later
+      if (showCohesion && valuesToShow.length > level) {
+        const midX = (offsetX[leftOrigIdx] + offsetX[rightOrigIdx]) / 2;
+        const valueText = valuesToShow[level].toFixed(2);
+        cohesionToDisplay.push({
+          midX: midX,
+          y2: y2,
+          valueText: valueText,
+          isSignificant: isSignificant
+        });
       }
 
       // Update positions for merged cluster
@@ -856,6 +842,32 @@ class RchicApp {
       offsetY[leftOrigIdx] = y2;
       offsetY[rightOrigIdx] = y2;
     }
+
+    // Display all cohesion/similarity values AFTER all lines are drawn (so they're on top)
+    cohesionToDisplay.forEach(item => {
+      // Add background rectangle for better readability
+      g.append('rect')
+        .attr('x', item.midX - 22)
+        .attr('y', item.y2 + 8)
+        .attr('width', 44)
+        .attr('height', 18)
+        .attr('rx', 4)
+        .style('fill', 'white')
+        .style('stroke', item.isSignificant ? '#e74c3c' : '#999')
+        .style('stroke-width', 1.5)
+        .style('opacity', 0.85);
+
+      // Add text
+      g.append('text')
+        .attr('x', item.midX)
+        .attr('y', item.y2 + 17)
+        .attr('text-anchor', 'middle')
+        .attr('dominant-baseline', 'middle')
+        .style('font-size', '12px')
+        .style('font-weight', '600')
+        .style('fill', item.isSignificant ? '#e74c3c' : '#333')
+        .text(item.valueText);
+    });
 
     // Add zoom behavior
     const zoom = d3.zoom()
