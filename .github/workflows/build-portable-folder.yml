@@ -372,12 +372,14 @@ jobs:
             head -20 "$RESOURCES_DIR/bin/R" || true
           done
 
-          # Find actual library path and copy installed packages
-          ACTUAL_LIB=$(find "$OUTPUT_DIR/R.framework/Versions" -maxdepth 3 -type d -name "library" | head -1)
+          # Find library path matching the runner architecture
+          ARCH_SUFFIX="${{ matrix.arch == 'arm64' && 'arm64' || 'x86_64' }}"
+          ACTUAL_LIB=$(find "$OUTPUT_DIR/R.framework/Versions" -maxdepth 3 -type d -name "library" -path "*${ARCH_SUFFIX}*" | head -1)
           if [ -z "$ACTUAL_LIB" ]; then
-            ACTUAL_LIB="$OUTPUT_DIR/R.framework/Resources/library"
+            # Fallback: any library
+            ACTUAL_LIB=$(find "$OUTPUT_DIR/R.framework/Versions" -maxdepth 3 -type d -name "library" | head -1)
           fi
-          echo "Actual library path: $ACTUAL_LIB"
+          echo "Target library ($ARCH_SUFFIX): $ACTUAL_LIB"
 
           if [ -d "$R_LIBS_USER" ]; then
             echo "Copying packages from $R_LIBS_USER to $ACTUAL_LIB"
@@ -389,19 +391,21 @@ jobs:
 
       - name: Install rchic package from source
         run: |
-          # Find actual library path
-          LIB_PATH=$(find electron/R-portable-mac/R.framework/Versions -maxdepth 3 -type d -name "library" | head -1)
+          # Find library path matching the runner architecture
+          ARCH_SUFFIX="${{ matrix.arch == 'arm64' && 'arm64' || 'x86_64' }}"
+          LIB_PATH=$(find electron/R-portable-mac/R.framework/Versions -maxdepth 3 -type d -name "library" -path "*${ARCH_SUFFIX}*" | head -1)
           if [ -z "$LIB_PATH" ]; then
-            LIB_PATH="electron/R-portable-mac/R.framework/Resources/library"
+            LIB_PATH=$(find electron/R-portable-mac/R.framework/Versions -maxdepth 3 -type d -name "library" | head -1)
           fi
-          echo "Installing rchic to: $LIB_PATH"
+          echo "Installing rchic to ($ARCH_SUFFIX): $LIB_PATH"
           R CMD INSTALL --library="$LIB_PATH" .
 
       - name: Verify R installation
         run: |
-          # Find the actual library path (handles ARM64 vs Intel)
-          LIB_PATH=$(find electron/R-portable-mac/R.framework -type d -name "library" | head -1)
-          echo "Using library path: $LIB_PATH"
+          # Find library path matching the runner architecture
+          ARCH_SUFFIX="${{ matrix.arch == 'arm64' && 'arm64' || 'x86_64' }}"
+          LIB_PATH=$(find electron/R-portable-mac/R.framework -type d -name "library" -path "*${ARCH_SUFFIX}*" | head -1)
+          echo "Using library path ($ARCH_SUFFIX): $LIB_PATH"
           electron/R-portable-mac/bin/Rscript -e ".libPaths('$LIB_PATH'); library(plumber); cat('plumber OK\n'); library(rchic); cat('rchic OK\n')"
 
       - name: Install npm dependencies
