@@ -128,9 +128,11 @@ function getRPath() {
     ].filter(Boolean);
   };
 
-  // Try bundled R first (production)
-  if (!isDev) {
-    const rPortablePath = getResourcePath('R-portable');
+  // Try bundled R first (production and dev)
+  {
+    const rPortablePath = isDev
+      ? path.join(__dirname, '..', `R-portable-${platform === 'win32' ? 'win' : platform === 'darwin' ? 'mac' : 'linux'}`)
+      : getResourcePath('R-portable');
 
     if (platform === 'win32') {
       const bundledR = path.join(rPortablePath, 'bin', 'Rscript.exe');
@@ -139,70 +141,56 @@ function getRPath() {
         return bundledR;
       }
     } else if (platform === 'darwin') {
-      // macOS: Use the wrapper script in bin/ first - it handles dynamic path detection
-      // This is more reliable with App Translocation than using R.framework directly
-      const wrapperScript = path.join(rPortablePath, 'bin', 'Rscript');
-      if (fs.existsSync(wrapperScript)) {
-        log.info('Using bundled R wrapper script');
-        return wrapperScript;
-      }
+      // macOS: Architecture-aware R selection
+      const archSuffix = process.arch === 'arm64' ? 'arm64' : 'x86_64';
+      const altArchSuffix = process.arch === 'arm64' ? 'x86_64' : 'arm64';
+      log.info(`Detected architecture: ${process.arch} (looking for ${archSuffix})`);
 
-      // Fallback: Try Versions path (handles different R versions for Intel/ARM)
       const versionsPath = path.join(rPortablePath, 'R.framework', 'Versions');
       if (fs.existsSync(versionsPath)) {
-        const versions = fs.readdirSync(versionsPath).filter(v => !v.startsWith('.') && v !== 'Current');
+        const versions = fs.readdirSync(versionsPath)
+          .filter(v => !v.startsWith('.') && v !== 'Current');
+
+        // First pass: prefer matching architecture
         for (const ver of versions) {
-          const rscript = path.join(versionsPath, ver, 'Resources', 'bin', 'Rscript');
-          if (fs.existsSync(rscript)) {
-            log.info(`Using bundled R from R.framework/Versions/${ver}`);
-            // Verify the exec binary exists
-            const execR = path.join(versionsPath, ver, 'Resources', 'bin', 'exec', 'R');
-            if (fs.existsSync(execR)) {
-              log.info(`exec/R binary found at: ${execR}`);
-            } else {
-              log.warn(`exec/R binary NOT found at: ${execR}`);
+          if (ver.includes(archSuffix)) {
+            const rBin = path.join(versionsPath, ver, 'Resources', 'bin', 'R');
+            if (fs.existsSync(rBin)) {
+              log.info(`Using native ${archSuffix} R from R.framework/Versions/${ver}`);
+              return rBin;
             }
-            return rscript;
+          }
+        }
+
+        // Second pass: fall back to other architecture (Rosetta compatibility)
+        for (const ver of versions) {
+          if (ver.includes(altArchSuffix)) {
+            const rBin = path.join(versionsPath, ver, 'Resources', 'bin', 'R');
+            if (fs.existsSync(rBin)) {
+              log.warn(`Native ${archSuffix} R not found, falling back to ${altArchSuffix} (via Rosetta)`);
+              return rBin;
+            }
+          }
+        }
+
+        // Third pass: any version at all
+        for (const ver of versions) {
+          const rBin = path.join(versionsPath, ver, 'Resources', 'bin', 'R');
+          if (fs.existsSync(rBin)) {
+            log.warn(`Using R from R.framework/Versions/${ver} (architecture unknown)`);
+            return rBin;
           }
         }
       }
 
-      // Last fallback: Try R.framework/Resources/bin/Rscript (symlink path)
-      const rFrameworkBin = path.join(rPortablePath, 'R.framework', 'Resources', 'bin', 'Rscript');
-      if (fs.existsSync(rFrameworkBin)) {
-        log.info('Using bundled R from R.framework/Resources');
-        return rFrameworkBin;
+      // Legacy fallback: try Resources symlink
+      const rBinScript = path.join(rPortablePath, 'R.framework', 'Resources', 'bin', 'R');
+      if (fs.existsSync(rBinScript)) {
+        log.info('Using bundled R from R.framework/Resources/bin/R (via symlink)');
+        return rBinScript;
       }
 
-      // Debug: list what's in R.framework
-      log.warn('R not found in R.framework, listing contents for debug:');
-      try {
-        const rFrameworkPath = path.join(rPortablePath, 'R.framework');
-        if (fs.existsSync(rFrameworkPath)) {
-          log.info(`R.framework contents: ${fs.readdirSync(rFrameworkPath).join(', ')}`);
-          if (fs.existsSync(versionsPath)) {
-            log.info(`Versions contents: ${fs.readdirSync(versionsPath).join(', ')}`);
-            // List contents of each version
-            const versions = fs.readdirSync(versionsPath).filter(v => !v.startsWith('.'));
-            for (const ver of versions) {
-              const verPath = path.join(versionsPath, ver);
-              try {
-                log.info(`  ${ver} contents: ${fs.readdirSync(verPath).join(', ')}`);
-                const binPath = path.join(verPath, 'Resources', 'bin');
-                if (fs.existsSync(binPath)) {
-                  log.info(`    bin contents: ${fs.readdirSync(binPath).join(', ')}`);
-                }
-              } catch (e) {
-                log.warn(`  Could not list ${ver}: ${e.message}`);
-              }
-            }
-          }
-        } else {
-          log.warn('R.framework does not exist!');
-        }
-      } catch (e) {
-        log.warn(`Could not list R.framework: ${e.message}`);
-      }
+      log.warn('Bundled R not found in R.framework');
     } else {
       // Linux
       const bundledR = path.join(rPortablePath, 'bin', 'Rscript');
@@ -282,13 +270,16 @@ async function startRServer() {
         }
       }
 
+      // Build arguments depending on whether we're using R or Rscript
+      const isRBin = rPath.endsWith('/R') || rPath.endsWith('\\R');
+      const rArgs = isRBin
+        ? ['--slave', '--no-restore', `--file=${startScript}`, '--args', serverPort.toString(), plumberPath, webPath]
+        : [startScript, serverPort.toString(), plumberPath, webPath];
+
+      log.info(`Using ${isRBin ? 'R' : 'Rscript'} with args: ${rArgs.join(' ')}`);
+
       // Start R process with external script
-      rProcess = spawn(rPath, [
-        startScript,
-        serverPort.toString(),
-        plumberPath,
-        webPath
-      ], {
+      rProcess = spawn(rPath, rArgs, {
         cwd: plumberPath,
         env: rEnv
       });
