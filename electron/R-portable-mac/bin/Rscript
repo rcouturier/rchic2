@@ -1,56 +1,60 @@
 #!/bin/bash
 # Rscript wrapper for portable R on macOS
-# Handles both Intel (x86_64) and ARM64 architectures with proper path detection
+# Handles both Intel (x86_64) and ARM64 architectures
 
-# Enable debug logging to /tmp/rscript-wrapper.log
-exec 2>>/tmp/rscript-wrapper.log
-echo "=== Rscript wrapper called at $(date) ===" >&2
-echo "Args: $@" >&2
-
-# Get the directory of this script
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-echo "SCRIPT_DIR: $SCRIPT_DIR" >&2
-
-# Find R_HOME - check multiple possible locations
 R_FRAMEWORK="$SCRIPT_DIR/../R.framework"
-echo "R_FRAMEWORK: $R_FRAMEWORK" >&2
 
-# Try Resources symlink first (standard macOS R.framework layout)
-if [ -d "$R_FRAMEWORK/Resources/bin" ]; then
-  R_HOME="$R_FRAMEWORK/Resources"
-  echo "Found R_HOME via Resources symlink" >&2
+# Detect architecture
+MACHINE_ARCH=$(uname -m)
+if [ "$MACHINE_ARCH" = "arm64" ]; then
+  PREFERRED_SUFFIX="arm64"
 else
-  # Try to find in Versions directory (handles different R versions for Intel/ARM)
-  for ver in "$R_FRAMEWORK/Versions"/*; do
-    if [ -d "$ver/Resources/bin" ]; then
-      R_HOME="$ver/Resources"
-      echo "Found R_HOME in Versions: $ver" >&2
-      break
-    fi
-  done
+  PREFERRED_SUFFIX="x86_64"
 fi
 
-echo "R_HOME: $R_HOME" >&2
+# First pass: prefer matching architecture in Versions directory
+R_HOME=""
+if [ -d "$R_FRAMEWORK/Versions" ]; then
+  for ver in "$R_FRAMEWORK/Versions"/*; do
+    case "$(basename "$ver")" in
+      *${PREFERRED_SUFFIX}*)
+        if [ -d "$ver/Resources/bin" ]; then
+          R_HOME="$ver/Resources"
+          break
+        fi
+        ;;
+    esac
+  done
 
-# Verify R_HOME
+  # Second pass: fall back to any available version
+  if [ -z "$R_HOME" ]; then
+    for ver in "$R_FRAMEWORK/Versions"/*; do
+      if [ -d "$ver/Resources/bin" ]; then
+        R_HOME="$ver/Resources"
+        break
+      fi
+    done
+  fi
+fi
+
+# Last resort: try Resources symlink
+if [ -z "$R_HOME" ] && [ -d "$R_FRAMEWORK/Resources/bin" ]; then
+  R_HOME="$R_FRAMEWORK/Resources"
+fi
+
 if [ -z "$R_HOME" ] || [ ! -d "$R_HOME/bin" ]; then
-  echo "ERROR: Cannot find R_HOME with valid bin directory" >&2
-  echo "Listing R.framework contents:" >&2
-  ls -la "$R_FRAMEWORK" >&2 2>/dev/null || echo "Cannot list R.framework" >&2
+  echo "ERROR: Cannot find R_HOME" >&2
   exit 1
 fi
 
-# Check for R binary
 R_BIN="$R_HOME/bin/R"
 if [ ! -f "$R_BIN" ]; then
   echo "ERROR: R binary not found at $R_BIN" >&2
-  echo "Contents of $R_HOME/bin:" >&2
-  ls -la "$R_HOME/bin" >&2 2>/dev/null
   exit 1
 fi
 
 export R_HOME
 export DYLD_LIBRARY_PATH="$R_HOME/lib:${DYLD_LIBRARY_PATH:-}"
 
-echo "Executing: $R_BIN --slave --no-restore $@" >&2
 exec "$R_BIN" --slave --no-restore "$@"
