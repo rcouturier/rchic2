@@ -32,6 +32,9 @@ electron/R-portable-linux/*
 !electron/R-portable-linux/bin/Rscript
 !electron/R-portable-linux/*.md
 
+# Build results
+resultats/
+
 # OS
 .DS_Store
 Thumbs.db
