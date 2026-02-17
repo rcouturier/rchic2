@@ -88,7 +88,6 @@ function getResourcePath(relativePath) {
 
 function getRPath() {
   const platform = process.platform;
-  const fs = require('fs');
 
   // Common R locations on different platforms
   const getSystemRPaths = () => {
@@ -240,33 +239,15 @@ async function startRServer() {
       // Build environment with R_HOME for macOS
       const rEnv = { ...process.env };
 
-      // On macOS, set R_HOME to R.framework/Resources
-      if (process.platform === 'darwin' && !isDev) {
-        const rPortablePath = getResourcePath('R-portable');
-        const fs = require('fs');
-
-        // Try the symlink path first
-        let rFrameworkResources = path.join(rPortablePath, 'R.framework', 'Resources');
-        if (!fs.existsSync(rFrameworkResources)) {
-          // Try to find actual Resources in Versions
-          const versionsPath = path.join(rPortablePath, 'R.framework', 'Versions');
-          if (fs.existsSync(versionsPath)) {
-            const versions = fs.readdirSync(versionsPath).filter(v => !v.startsWith('.') && v !== 'Current');
-            for (const ver of versions) {
-              const candidate = path.join(versionsPath, ver, 'Resources');
-              if (fs.existsSync(candidate)) {
-                rFrameworkResources = candidate;
-                break;
-              }
-            }
-          }
-        }
-
-        if (fs.existsSync(rFrameworkResources)) {
-          rEnv.R_HOME = rFrameworkResources;
+      // On macOS, derive R_HOME from the selected bin/R path
+      // rPath is e.g. .../R.framework/Versions/4.4-arm64/Resources/bin/R
+      // R_HOME should be .../R.framework/Versions/4.4-arm64/Resources
+      if (process.platform === 'darwin') {
+        const rDir = path.dirname(rPath); // .../bin
+        const rHome = path.dirname(rDir); // .../Resources
+        if (fs.existsSync(rHome)) {
+          rEnv.R_HOME = rHome;
           log.info(`Set R_HOME to: ${rEnv.R_HOME}`);
-        } else {
-          log.warn(`R_HOME not found: ${rFrameworkResources}`);
         }
       }
 
