@@ -117,6 +117,9 @@ jobs:
           fi
           chmod +x "$RSCRIPT"
 
+          # R_HOME must point to the portable R so start-server.R adds the bundled library to .libPaths()
+          export R_HOME="$DIST/resources/R-portable"
+
           echo "Starting R server on port $PORT..."
           "$RSCRIPT" "$PLUMBER_DIR/start-server.R" "$PORT" "$PLUMBER_DIR" "$WEB_DIR" \
             > /tmp/r-smoke.log 2>&1 &
@@ -433,6 +436,16 @@ jobs:
 
       - name: Install rchic package from source
         run: |
+          # Use the bundled R binary so the compiled rchic .so matches the bundled R architecture.
+          # Using the system R (setup-r) would compile for the runner arch which may differ.
+          R_BIN=$(find electron/R-portable-mac/R.framework/Versions -path "*/bin/R" -type f | head -1)
+          if [ -z "$R_BIN" ]; then
+            echo "ERROR: R binary not found in bundled framework"
+            find electron/R-portable-mac -name "R" 2>/dev/null | head -10 || true
+            exit 1
+          fi
+          echo "Bundled R binary: $R_BIN"
+
           # Find library path matching the runner architecture
           ARCH_SUFFIX="${{ matrix.arch == 'arm64' && 'arm64' || 'x86_64' }}"
           LIB_PATH=$(find electron/R-portable-mac/R.framework/Versions -maxdepth 3 -type d -name "library" -path "*${ARCH_SUFFIX}*" | head -1)
@@ -440,7 +453,11 @@ jobs:
             LIB_PATH=$(find electron/R-portable-mac/R.framework/Versions -maxdepth 3 -type d -name "library" | head -1)
           fi
           echo "Installing rchic to ($ARCH_SUFFIX): $LIB_PATH"
-          R CMD INSTALL --library="$LIB_PATH" .
+
+          R_HOME_BUNDLED="$(cd "$(dirname "$R_BIN")/.." && pwd)"
+          export R_HOME="$R_HOME_BUNDLED"
+          export DYLD_LIBRARY_PATH="$R_HOME/lib:${DYLD_LIBRARY_PATH:-}"
+          "$R_BIN" CMD INSTALL --library="$LIB_PATH" .
 
       - name: Verify R installation
         run: |
