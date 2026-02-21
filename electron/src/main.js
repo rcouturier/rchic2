@@ -1,7 +1,8 @@
 const { app, BrowserWindow, Menu, dialog, shell, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { spawn } = require('child_process');
+const os = require('os');
+const { spawn, execSync } = require('child_process');
 const portfinder = require('portfinder');
 const log = require('electron-log');
 
@@ -67,12 +68,12 @@ log.transports.console.level = 'debug';
 
 // On Windows, also log to a known location for debugging
 if (process.platform === 'win32') {
-  const os = require('os');
   log.transports.file.resolvePathFn = () => path.join(os.homedir(), 'RCHIC-debug.log');
 }
 log.info('Log file location:', log.transports.file.getFile().path);
 
 let mainWindow = null;
+let splashWindow = null;
 let rProcess = null;
 let serverPort = 8484;
 let isDev = process.argv.includes('--dev');
@@ -85,6 +86,143 @@ function getResourcePath(relativePath) {
   }
   return path.join(process.resourcesPath, relativePath);
 }
+
+// ---------------------------------------------------------------------------
+// Splash screen helpers
+// ---------------------------------------------------------------------------
+
+function createSplashWindow() {
+  splashWindow = new BrowserWindow({
+    width: 500,
+    height: 370,
+    frame: false,
+    resizable: false,
+    center: true,
+    alwaysOnTop: false,
+    skipTaskbar: false,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'splash-preload.js')
+    }
+  });
+
+  splashWindow.loadFile(path.join(__dirname, 'splash.html'));
+
+  return new Promise(resolve => {
+    splashWindow.webContents.once('did-finish-load', resolve);
+  });
+}
+
+/**
+ * Send a status update to the splash screen.
+ * id      – unique step identifier (string)
+ * status  – 'pending' | 'success' | 'warning' | 'error'
+ * message – short label
+ * detail  – optional longer description / path / value
+ */
+function sendSplashStatus(id, status, message, detail) {
+  if (!splashWindow || splashWindow.isDestroyed()) return;
+  const js = `typeof updateStatus === 'function' && updateStatus(
+    ${JSON.stringify(id)},
+    ${JSON.stringify(status)},
+    ${JSON.stringify(message)},
+    ${JSON.stringify(detail || '')}
+  )`;
+  splashWindow.webContents.executeJavaScript(js).catch(() => {});
+}
+
+/**
+ * Check available memory and report to the splash screen.
+ * Returns false only when memory is dangerously low (< 512 MB free).
+ */
+function checkSystemRequirements() {
+  const totalMem = os.totalmem();
+  const freeMem  = os.freemem();
+  const totalGB  = (totalMem / (1024 ** 3)).toFixed(1);
+  const freeGB   = (freeMem  / (1024 ** 3)).toFixed(1);
+
+  const detail = `Total RAM: ${totalGB} GB  —  Free: ${freeGB} GB`;
+
+  const MIN_FREE  = 512  * 1024 * 1024; // 512 MB  – hard minimum
+  const WARN_FREE = 1024 * 1024 * 1024; // 1 GB    – soft warning
+
+  if (freeMem < MIN_FREE) {
+    sendSplashStatus('memory', 'error',
+      'Insufficient free memory',
+      detail + '  (minimum 512 MB required — R may fail to start)');
+    log.error('Insufficient memory:', detail);
+    return false;
+  }
+
+  if (freeMem < WARN_FREE) {
+    sendSplashStatus('memory', 'warning',
+      'Low memory detected',
+      detail + '  (less than 1 GB free — performance may be affected)');
+    log.warn('Low memory:', detail);
+    return true;
+  }
+
+  sendSplashStatus('memory', 'success', 'System requirements OK', detail);
+  log.info('Memory check OK:', detail);
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// Disk space check (temp folder used by R)
+// ---------------------------------------------------------------------------
+async function checkDiskSpace() {
+  const tmpDir = os.tmpdir();
+  sendSplashStatus('disk', 'pending', 'Checking disk space...');
+
+  try {
+    let freeBytes = null;
+
+    if (process.platform === 'win32') {
+      const drive = path.parse(tmpDir).root.replace(/\\/g, '').replace('/', '');
+      const out = execSync(
+        `wmic logicaldisk where "DeviceID='${drive}'" get FreeSpace /value`,
+        { timeout: 3000, windowsHide: true }
+      ).toString();
+      const m = out.match(/FreeSpace=(\d+)/);
+      freeBytes = m ? parseInt(m[1]) : null;
+    } else {
+      const out = execSync(`df -Pk "${tmpDir}" 2>/dev/null | tail -1`, { timeout: 3000 }).toString();
+      const parts = out.trim().split(/\s+/);
+      freeBytes = parts[3] ? parseInt(parts[3]) * 1024 : null; // KB → bytes
+    }
+
+    if (freeBytes === null) {
+      sendSplashStatus('disk', 'warning', 'Could not determine free disk space', tmpDir);
+      return;
+    }
+
+    const freeMB = Math.round(freeBytes / (1024 * 1024));
+    const detail = `Temp folder (${tmpDir})  —  Free: ${freeMB} MB`;
+
+    if (freeBytes < 200 * 1024 * 1024) {
+      sendSplashStatus('disk', 'error',
+        'Insufficient disk space in temp folder',
+        detail + '  (minimum 200 MB required)');
+      log.error('Insufficient disk space:', detail);
+    } else if (freeBytes < 500 * 1024 * 1024) {
+      sendSplashStatus('disk', 'warning',
+        'Low disk space in temp folder',
+        detail + '  (less than 500 MB free — large files may fail)');
+      log.warn('Low disk space:', detail);
+    } else {
+      sendSplashStatus('disk', 'success', 'Disk space OK', detail);
+      log.info('Disk check OK:', detail);
+    }
+  } catch (e) {
+    sendSplashStatus('disk', 'warning', 'Could not check disk space', e.message);
+    log.warn('Disk space check failed:', e.message);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// R path detection
+// ---------------------------------------------------------------------------
 
 function getRPath() {
   const platform = process.platform;
@@ -215,23 +353,43 @@ function getRPath() {
   return platform === 'win32' ? 'Rscript.exe' : 'Rscript';
 }
 
+// ---------------------------------------------------------------------------
 // Start R Plumber server
+// ---------------------------------------------------------------------------
 async function startRServer() {
   return new Promise(async (resolve, reject) => {
     try {
-      // Find available port
+      // --- Port ---
+      sendSplashStatus('port', 'pending', 'Finding available port...');
       portfinder.basePort = 8484;
       serverPort = await portfinder.getPortPromise();
+      sendSplashStatus('port', 'success', `Port ${serverPort} is available`);
       log.info(`Using port: ${serverPort}`);
 
+      // --- Locate R ---
+      sendSplashStatus('r-locate', 'pending', 'Locating R installation...');
       const rPath = getRPath();
+
+      const isBundled = rPath.includes('R-portable') || rPath.includes('R.framework');
+      const fallbackToPath = rPath === 'Rscript' || rPath === 'Rscript.exe';
+
+      if (fallbackToPath) {
+        sendSplashStatus('r-locate', 'warning',
+          'Bundled R not found — using system PATH',
+          'Install R if the application fails to start');
+      } else if (isBundled) {
+        sendSplashStatus('r-locate', 'success', 'Bundled R found', rPath);
+      } else {
+        sendSplashStatus('r-locate', 'success', 'System R found', rPath);
+      }
+      log.info(`R path: ${rPath}`);
+
       const plumberPath = getResourcePath('plumber');
       const webPath = getResourcePath('web');
       const startScript = isDev
         ? path.join(__dirname, 'start-server.R')
         : path.join(process.resourcesPath, 'plumber', 'start-server.R');
 
-      log.info(`R path: ${rPath}`);
       log.info(`Plumber path: ${plumberPath}`);
       log.info(`Web path: ${webPath}`);
       log.info(`Start script: ${startScript}`);
@@ -240,11 +398,9 @@ async function startRServer() {
       const rEnv = { ...process.env };
 
       // On macOS, derive R_HOME from the selected bin/R path
-      // rPath is e.g. .../R.framework/Versions/4.4-arm64/Resources/bin/R
-      // R_HOME should be .../R.framework/Versions/4.4-arm64/Resources
       if (process.platform === 'darwin') {
-        const rDir = path.dirname(rPath); // .../bin
-        const rHome = path.dirname(rDir); // .../Resources
+        const rDir  = path.dirname(rPath); // .../bin
+        const rHome = path.dirname(rDir);  // .../Resources
         if (fs.existsSync(rHome)) {
           rEnv.R_HOME = rHome;
           log.info(`Set R_HOME to: ${rEnv.R_HOME}`);
@@ -259,49 +415,103 @@ async function startRServer() {
 
       log.info(`Using ${isRBin ? 'R' : 'Rscript'} with args: ${rArgs.join(' ')}`);
 
-      // Start R process with external script
+      // --- Spawn R ---
+      sendSplashStatus('r-start', 'pending', 'Starting R process...');
       rProcess = spawn(rPath, rArgs, {
         cwd: plumberPath,
         env: rEnv
       });
 
+      // settled guards against resolve/reject being called more than once
+      let settled = false;
+      const settle = (fn, value) => { if (!settled) { settled = true; fn(value); } };
+
+      // Accumulate stderr lines for crash diagnosis
+      const stderrLines = [];
+
       rProcess.stdout.on('data', (data) => {
-        log.info(`R: ${data}`);
+        log.info(`R stdout: ${data}`);
       });
 
       rProcess.stderr.on('data', (data) => {
         const message = data.toString();
         log.info(`R: ${message}`);
 
-        // Check if server is running
-        if (message.includes('Running') || message.includes('Starting server')) {
-          setTimeout(() => resolve(serverPort), 1000);
+        // Collect non-empty lines for crash diagnosis
+        message.split('\n').forEach(l => { if (l.trim()) stderrLines.push(l.trim()); });
+
+        // Server is up
+        if (!settled && (message.includes('Running') || message.includes('Starting server'))) {
+          sendSplashStatus('r-start', 'success', 'R server started', `Listening on port ${serverPort}`);
+          setTimeout(() => settle(resolve, serverPort), 1000);
+        }
+
+        // Surface R error lines in the splash before the server starts
+        if (!settled) {
+          const errorLines = message.split('\n').filter(l =>
+            /^Error\b|^ERROR\b|cannot open|permission denied|no such file|package .* not found/i.test(l.trim())
+          );
+          if (errorLines.length > 0) {
+            sendSplashStatus('r-errors', 'warning',
+              'R reported an issue',
+              errorLines[0].trim().substring(0, 120));
+            log.warn('R error line:', errorLines[0]);
+          }
         }
       });
 
       rProcess.on('error', (err) => {
         log.error(`Failed to start R: ${err}`);
         log.error(`R path was: ${rPath}`);
-        dialog.showErrorBox('Erreur R', `Impossible de lancer R:\n${err.message}\n\nChemin: ${rPath}`);
-        reject(err);
+        sendSplashStatus('r-start', 'error', 'Failed to launch R', err.message);
+        settle(reject, err);
       });
 
       rProcess.on('close', (code) => {
         log.info(`R process exited with code ${code}`);
         rProcess = null;
+
+        if (!settled && code !== null && code !== 0) {
+          // R crashed before the server ever started
+          const errorSummary = stderrLines
+            .filter(l => /error|fatal|cannot|failed|missing|package/i.test(l))
+            .slice(0, 2)
+            .join('  |  ') || `Exit code: ${code}`;
+          sendSplashStatus('r-crash', 'error',
+            `R process exited unexpectedly (code ${code})`,
+            errorSummary);
+          log.error('R crashed before server started:', errorSummary);
+          settle(reject, new Error(`R exited with code ${code}: ${errorSummary}`));
+        } else if (!settled) {
+          // R exited cleanly (code 0) but server never confirmed — unusual
+          sendSplashStatus('r-crash', 'warning',
+            'R process ended before server started',
+            'Trying to connect anyway...');
+          settle(resolve, serverPort);
+        }
       });
 
-      // Timeout - assume server started after 5 seconds
-      setTimeout(() => resolve(serverPort), 5000);
+      // 5 s timeout: if R hasn't confirmed startup yet, proceed and let waitForServer decide
+      setTimeout(() => {
+        if (!settled) {
+          sendSplashStatus('r-start', 'warning',
+            'R startup confirmation not received',
+            'Attempting to connect anyway...');
+          settle(resolve, serverPort);
+        }
+      }, 5000);
 
     } catch (err) {
       log.error(`Error starting R server: ${err}`);
+      sendSplashStatus('r-start', 'error', 'R server error', err.message);
       reject(err);
     }
   });
 }
 
+// ---------------------------------------------------------------------------
 // Stop R server
+// ---------------------------------------------------------------------------
 function stopRServer() {
   if (rProcess) {
     log.info('Stopping R server...');
@@ -314,7 +524,9 @@ function stopRServer() {
   }
 }
 
+// ---------------------------------------------------------------------------
 // Build application menu with translations
+// ---------------------------------------------------------------------------
 function buildMenu() {
   const menuTemplate = [
     {
@@ -374,7 +586,9 @@ function setLocale(locale) {
   }
 }
 
+// ---------------------------------------------------------------------------
 // Create main window
+// ---------------------------------------------------------------------------
 function createWindow() {
   const preloadPath = path.join(__dirname, 'preload.js');
   log.info('Preload path:', preloadPath);
@@ -403,6 +617,11 @@ function createWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+    // Close splash once the main window is visible
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.close();
+      splashWindow = null;
+    }
   });
 
   mainWindow.on('closed', () => {
@@ -410,7 +629,9 @@ function createWindow() {
   });
 }
 
+// ---------------------------------------------------------------------------
 // Open file dialog
+// ---------------------------------------------------------------------------
 async function openFile() {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
@@ -435,7 +656,9 @@ async function openFile() {
   }
 }
 
-// Show about dialog
+// ---------------------------------------------------------------------------
+// About dialog
+// ---------------------------------------------------------------------------
 function showAbout() {
   dialog.showMessageBox(mainWindow, {
     type: 'info',
@@ -445,7 +668,9 @@ function showAbout() {
   });
 }
 
+// ---------------------------------------------------------------------------
 // Wait for server to be ready
+// ---------------------------------------------------------------------------
 async function waitForServer(port, maxAttempts = 30) {
   const http = require('http');
   for (let i = 0; i < maxAttempts; i++) {
@@ -465,22 +690,36 @@ async function waitForServer(port, maxAttempts = 30) {
         });
       });
       log.info(`Server ready after ${i + 1} attempts`);
+      sendSplashStatus('server', 'success',
+        'Server is ready',
+        `Responded on port ${port} after ${i + 1} health-check${i === 0 ? '' : 's'}`);
       return true;
     } catch (e) {
       log.info(`Waiting for server... attempt ${i + 1}`);
+      sendSplashStatus('server', 'pending',
+        `Connecting to server…  (attempt ${i + 1} / ${maxAttempts})`);
       await new Promise(r => setTimeout(r, 500));
     }
   }
   return false;
 }
 
+// ---------------------------------------------------------------------------
 // IPC handlers
+// ---------------------------------------------------------------------------
 ipcMain.on('set-locale', (event, locale) => {
   log.info('IPC set-locale received:', locale);
   setLocale(locale);
 });
 
+ipcMain.on('splash-quit', () => {
+  log.info('User closed splash after error');
+  app.quit();
+});
+
+// ---------------------------------------------------------------------------
 // App lifecycle
+// ---------------------------------------------------------------------------
 app.whenReady().then(async () => {
   log.info('App starting...');
 
@@ -489,26 +728,65 @@ app.whenReady().then(async () => {
   loadMenuTranslations();
   log.info('Locale initialized to:', currentLocale);
 
+  // Show splash screen and wait for it to fully load
+  await createSplashWindow();
+
+  // Inject current version into splash footer
+  splashWindow.webContents
+    .executeJavaScript(`typeof setVersion === 'function' && setVersion(${JSON.stringify(app.getVersion())})`)
+    .catch(() => {});
+
+  // --- Step 1: memory ---
+  sendSplashStatus('memory', 'pending', 'Checking system requirements...');
+  await new Promise(r => setTimeout(r, 80)); // let the renderer paint
+  const memOK = checkSystemRequirements();
+  if (!memOK) {
+    await new Promise(r => setTimeout(r, 2000));
+  }
+
+  // --- Step 2: disk space ---
+  await checkDiskSpace();
+
+  // --- Step 3: start R & wait for server ---
   try {
     await startRServer();
-    log.info('R server started');
+    log.info('R server process started');
 
-    // Wait for server to be actually ready
+    // --- Step 3: wait for HTTP health check ---
+    sendSplashStatus('server', 'pending', 'Connecting to server…');
     const isReady = await waitForServer(serverPort);
+
     if (!isReady) {
+      sendSplashStatus('server', 'warning',
+        'Server health-check timed out',
+        'The application may not work correctly');
       log.warn('Server may not be fully ready, proceeding anyway...');
     }
 
+    // Brief pause so the user can read the "ready" state
+    await new Promise(r => setTimeout(r, 500));
+
+    // --- Open main window (splash closes automatically in ready-to-show) ---
     createWindow();
+
   } catch (err) {
     log.error('Failed to start:', err);
-    dialog.showErrorBox('Erreur', `Impossible de demarrer le serveur R:\n${err.message}`);
-    app.quit();
+    sendSplashStatus('fatal', 'error', 'Application failed to start', err.message);
+    // Show the Quit button and leave the splash open so the user can read the error
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.webContents
+        .executeJavaScript('typeof showQuitButton === "function" && showQuitButton()')
+        .catch(() => {});
+    }
   }
 });
 
 app.on('window-all-closed', () => {
   stopRServer();
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.close();
+    splashWindow = null;
+  }
   if (process.platform !== 'darwin') {
     app.quit();
   }

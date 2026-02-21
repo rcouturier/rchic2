@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>RCHIC</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f7fa;
+      color: #2d3748;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+      -webkit-app-region: drag;
+    }
+
+    .header {
+      padding: 20px 28px 16px;
+      background: linear-gradient(135deg, #1e3a5f 0%, #2b5282 100%);
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .app-name {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: 5px;
+      color: #ffffff;
+    }
+
+    .app-subtitle {
+      font-size: 11px;
+      color: #a0c4e0;
+      letter-spacing: 1.5px;
+      margin-top: 3px;
+      text-transform: uppercase;
+    }
+
+    .steps {
+      flex: 1;
+      padding: 16px 24px;
+      overflow-y: auto;
+    }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid #e2e8f0;
+      animation: slideIn 0.25s ease;
+    }
+
+    .step:last-child {
+      border-bottom: none;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-8px); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    .step-icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      margin-top: 1px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid #cbd5e0;
+      border-top-color: #2b5282;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .icon-success { color: #38a169; }
+    .icon-warning { color: #d69e2e; }
+    .icon-error   { color: #e53e3e; }
+
+    .step-content { flex: 1; min-width: 0; }
+
+    .step-message {
+      font-size: 13px;
+      font-weight: 500;
+      color: #2d3748;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .step-message.pending { color: #718096; }
+    .step-message.success { color: #2d6a4f; }
+    .step-message.warning { color: #b7791f; }
+    .step-message.error   { color: #c53030; font-weight: 600; }
+
+    .step-detail {
+      font-size: 10.5px;
+      color: #718096;
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .step-detail.error { color: #e53e3e; }
+
+    .footer {
+      padding: 8px 24px;
+      font-size: 10px;
+      color: #a0aec0;
+      border-top: 1px solid #e2e8f0;
+      background: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .footer-status {
+      transition: color 0.3s;
+    }
+
+    #quit-btn {
+      display: none;
+      margin-left: 12px;
+      padding: 4px 14px;
+      background: #e53e3e;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-app-region: no-drag;
+    }
+
+    #quit-btn:hover { background: #c53030; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="app-name">RCHIC</div>
+    <div class="app-subtitle">Statistical Implicative Analysis</div>
+  </div>
+
+  <div class="steps" id="steps"></div>
+
+  <div class="footer">
+    <span class="footer-status" id="footer-status">Initializing...</span>
+    <span style="display:flex;align-items:center;gap:8px;">
+      <button id="quit-btn" onclick="window.splashAPI && window.splashAPI.quit()">Quit</button>
+      <span id="footer-version"></span>
+    </span>
+  </div>
+
+  <script>
+    const stepRegistry = {};
+
+    function svgSuccess() {
+      return '<svg class="icon-success" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+    }
+
+    function svgWarning() {
+      return '<svg class="icon-warning" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>';
+    }
+
+    function svgError() {
+      return '<svg class="icon-error" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
+    }
+
+    function getIconHTML(status) {
+      switch (status) {
+        case 'success': return svgSuccess();
+        case 'warning': return svgWarning();
+        case 'error':   return svgError();
+        default:        return '<div class="spinner"></div>';
+      }
+    }
+
+    function updateStatus(id, status, message, detail) {
+      const stepsEl = document.getElementById('steps');
+      const footerEl = document.getElementById('footer-status');
+
+      if (stepRegistry[id]) {
+        const stepEl = document.getElementById('step-' + id);
+        if (stepEl) {
+          stepEl.querySelector('.step-icon').innerHTML = getIconHTML(status);
+          const msgEl = stepEl.querySelector('.step-message');
+          msgEl.textContent = message;
+          msgEl.className = 'step-message ' + status;
+          const detailEl = stepEl.querySelector('.step-detail');
+          if (detail) {
+            detailEl.textContent = detail;
+            detailEl.className = 'step-detail' + (status === 'error' ? ' error' : '');
+            detailEl.style.display = 'block';
+          } else {
+            detailEl.style.display = 'none';
+          }
+        }
+      } else {
+        stepRegistry[id] = true;
+        const stepEl = document.createElement('div');
+        stepEl.className = 'step';
+        stepEl.id = 'step-' + id;
+        stepEl.innerHTML =
+          '<div class="step-icon">' + getIconHTML(status) + '</div>' +
+          '<div class="step-content">' +
+            '<div class="step-message ' + status + '">' + escHtml(message) + '</div>' +
+            '<div class="step-detail' + (status === 'error' ? ' error' : '') + '" style="' + (detail ? '' : 'display:none') + '">' + escHtml(detail || '') + '</div>' +
+          '</div>';
+        stepsEl.appendChild(stepEl);
+        stepsEl.scrollTop = stepsEl.scrollHeight;
+      }
+
+      if (status === 'error') {
+        footerEl.textContent = 'Error — see details above';
+        footerEl.style.color = '#e53e3e';
+      } else if (status === 'pending') {
+        footerEl.textContent = message;
+        footerEl.style.color = '#718096';
+      } else if (id === 'ready') {
+        footerEl.textContent = 'Ready!';
+        footerEl.style.color = '#38a169';
+      }
+    }
+
+    function setVersion(v) {
+      document.getElementById('footer-version').textContent = 'v' + v;
+    }
+
+    function showQuitButton() {
+      document.getElementById('quit-btn').style.display = 'inline-block';
+    }
+
+    function escHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>
