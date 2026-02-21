@@ -1,6 +1,6 @@
 {
   "name": "rchic-desktop",
-  "version": "0.28.0",
+  "version": "0.31.0",
   "description": "RCHIC - Statistical Implicative Analysis",
   "main": "src/main.js",
   "author": "Raphael Couturier <raphael.couturier@univ-fcomte.fr>",
