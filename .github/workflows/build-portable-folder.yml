@@ -102,6 +102,48 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Smoke test — R server startup (Linux)
+        run: |
+          PORT=18484
+          DIST="electron/dist-portable-folder/linux-unpacked"
+          RSCRIPT="$DIST/resources/R-portable/bin/Rscript"
+          PLUMBER_DIR="$DIST/resources/plumber"
+          WEB_DIR="$DIST/resources/web"
+
+          if [ ! -f "$RSCRIPT" ]; then
+            echo "ERROR: Rscript not found at $RSCRIPT"
+            find "$DIST/resources" -name "Rscript" 2>/dev/null | head -10 || true
+            exit 1
+          fi
+          chmod +x "$RSCRIPT"
+
+          echo "Starting R server on port $PORT..."
+          "$RSCRIPT" "$PLUMBER_DIR/start-server.R" "$PORT" "$PLUMBER_DIR" "$WEB_DIR" \
+            > /tmp/r-smoke.log 2>&1 &
+          R_PID=$!
+          echo "R PID: $R_PID"
+
+          echo "Polling /api/health (up to 120 s, 2 s interval)..."
+          for i in $(seq 1 60); do
+            sleep 2
+            if ! kill -0 $R_PID 2>/dev/null; then
+              echo "ERROR: R process died before server was ready"
+              cat /tmp/r-smoke.log
+              exit 1
+            fi
+            if curl -sf "http://127.0.0.1:$PORT/api/health" > /dev/null; then
+              echo "OK — server healthy after $((i * 2)) s"
+              kill $R_PID 2>/dev/null || true
+              exit 0
+            fi
+            echo "  attempt $i/60 ($((i * 2)) s elapsed)..."
+          done
+
+          echo "ERROR: server did not respond within 120 s"
+          cat /tmp/r-smoke.log
+          kill $R_PID 2>/dev/null || true
+          exit 1
+
       - name: Rename and create ZIP archive
         run: |
           cd electron/dist-portable-folder
@@ -420,6 +462,55 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Smoke test — R server startup (macOS)
+        run: |
+          PORT=18484
+          APP_PATH=$(find electron/dist-portable-folder -maxdepth 2 -name "*.app" -type d | head -1)
+          RESOURCES="$APP_PATH/Contents/Resources"
+
+          # Find R binary (main.js uses bin/R, not Rscript, on macOS)
+          R_BIN=$(find "$RESOURCES/R-portable/R.framework/Versions" -path "*/bin/R" -type f | head -1)
+          if [ -z "$R_BIN" ]; then
+            echo "ERROR: R binary not found under $RESOURCES/R-portable"
+            find "$RESOURCES/R-portable" \( -name "R" -o -name "Rscript" \) 2>/dev/null | head -10 || true
+            exit 1
+          fi
+          chmod +x "$R_BIN"
+
+          PLUMBER_DIR="$RESOURCES/plumber"
+          WEB_DIR="$RESOURCES/web"
+          R_HOME="$(cd "$(dirname "$R_BIN")/.." && pwd)"
+          export R_HOME
+
+          echo "Starting R server (R: $R_BIN, R_HOME: $R_HOME, port: $PORT)..."
+          "$R_BIN" --slave --no-restore \
+            --file="$PLUMBER_DIR/start-server.R" \
+            --args "$PORT" "$PLUMBER_DIR" "$WEB_DIR" \
+            > /tmp/r-smoke.log 2>&1 &
+          R_PID=$!
+          echo "R PID: $R_PID"
+
+          echo "Polling /api/health (up to 120 s, 2 s interval)..."
+          for i in $(seq 1 60); do
+            sleep 2
+            if ! kill -0 $R_PID 2>/dev/null; then
+              echo "ERROR: R process died before server was ready"
+              cat /tmp/r-smoke.log
+              exit 1
+            fi
+            if curl -sf "http://127.0.0.1:$PORT/api/health" > /dev/null; then
+              echo "OK — server healthy after $((i * 2)) s"
+              kill $R_PID 2>/dev/null || true
+              exit 0
+            fi
+            echo "  attempt $i/60 ($((i * 2)) s elapsed)..."
+          done
+
+          echo "ERROR: server did not respond within 120 s"
+          cat /tmp/r-smoke.log
+          kill $R_PID 2>/dev/null || true
+          exit 1
+
       - name: Rename and create ZIP archive
         run: |
           # Find the .app bundle
@@ -547,6 +638,69 @@ jobs:
           npm run build:win-portable-folder
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Smoke test — R server startup (Windows)
+        shell: pwsh
+        run: |
+          $PORT        = 18484
+          $RESOURCES   = "electron\dist-portable-folder\win-unpacked\resources"
+          $PLUMBER_DIR = "$RESOURCES\plumber"
+          $WEB_DIR     = "$RESOURCES\web"
+          $LOG         = "$env:TEMP\r-smoke.log"
+          $LOG_ERR     = "$env:TEMP\r-smoke-err.log"
+
+          # Prefer bin\x64\Rscript.exe — the actual binary.
+          # bin\Rscript.exe is a launcher with hardcoded absolute paths and
+          # will not work on any machine other than the original build host.
+          $RSCRIPT = "$RESOURCES\R-portable\bin\x64\Rscript.exe"
+          if (!(Test-Path $RSCRIPT)) {
+            $RSCRIPT = "$RESOURCES\R-portable\bin\Rscript.exe"
+          }
+          if (!(Test-Path $RSCRIPT)) {
+            Write-Host "ERROR: Rscript not found"
+            Get-ChildItem "$RESOURCES\R-portable\bin" -Recurse -ErrorAction SilentlyContinue |
+              Select-Object FullName
+            exit 1
+          }
+
+          Write-Host "Starting R server on port $PORT..."
+          Write-Host "Rscript: $RSCRIPT"
+          $proc = Start-Process -FilePath $RSCRIPT `
+            -ArgumentList "$PLUMBER_DIR\start-server.R", $PORT, $PLUMBER_DIR, $WEB_DIR `
+            -RedirectStandardOutput $LOG -RedirectStandardError $LOG_ERR `
+            -PassThru -NoNewWindow
+          Write-Host "R PID: $($proc.Id)"
+
+          Write-Host "Polling /api/health (up to 120 s, 2 s interval)..."
+          $ok = $false
+          for ($i = 1; $i -le 60; $i++) {
+            Start-Sleep -Seconds 2
+            if ($proc.HasExited) {
+              Write-Host "ERROR: R process exited with code $($proc.ExitCode)"
+              Get-Content $LOG     -ErrorAction SilentlyContinue
+              Get-Content $LOG_ERR -ErrorAction SilentlyContinue
+              exit 1
+            }
+            try {
+              $resp = Invoke-WebRequest -Uri "http://127.0.0.1:$PORT/api/health" `
+                -TimeoutSec 3 -UseBasicParsing -ErrorAction Stop
+              if ($resp.StatusCode -eq 200) {
+                Write-Host "OK — server healthy after $($i * 2) s"
+                $ok = $true
+                break
+              }
+            } catch {
+              Write-Host "  attempt $i/60 ($($i * 2) s elapsed)..."
+            }
+          }
+
+          Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+          if (-not $ok) {
+            Write-Host "ERROR: server did not respond within 120 s"
+            Get-Content $LOG     -ErrorAction SilentlyContinue
+            Get-Content $LOG_ERR -ErrorAction SilentlyContinue
+            exit 1
+          }
 
       - name: Rename and create ZIP archive
         shell: pwsh
