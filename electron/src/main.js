@@ -272,7 +272,15 @@ function getRPath() {
       : getResourcePath('R-portable');
 
     if (platform === 'win32') {
-      const bundledR = path.join(rPortablePath, 'bin', 'Rscript.exe');
+      // Prefer bin\x64\Rscript.exe — the actual 64-bit binary.
+      // bin\Rscript.exe is a launcher with a hardcoded absolute path to the
+      // original install location; it breaks when the app is moved to another machine.
+      const bundledR64 = path.join(rPortablePath, 'bin', 'x64', 'Rscript.exe');
+      const bundledR   = path.join(rPortablePath, 'bin', 'Rscript.exe');
+      if (fs.existsSync(bundledR64)) {
+        log.info('Using bundled R (x64)');
+        return bundledR64;
+      }
       if (fs.existsSync(bundledR)) {
         log.info('Using bundled R');
         return bundledR;
@@ -671,7 +679,7 @@ function showAbout() {
 // ---------------------------------------------------------------------------
 // Wait for server to be ready
 // ---------------------------------------------------------------------------
-async function waitForServer(port, maxAttempts = 30) {
+async function waitForServer(port, maxAttempts = 120) {
   const http = require('http');
   for (let i = 0; i < maxAttempts; i++) {
     try {
@@ -698,7 +706,7 @@ async function waitForServer(port, maxAttempts = 30) {
       log.info(`Waiting for server... attempt ${i + 1}`);
       sendSplashStatus('server', 'pending',
         `Connecting to server…  (attempt ${i + 1} / ${maxAttempts})`);
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(r => setTimeout(r, 1000));
     }
   }
   return false;
