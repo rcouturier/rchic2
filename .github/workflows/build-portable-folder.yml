@@ -117,8 +117,10 @@ jobs:
           fi
           chmod +x "$RSCRIPT"
 
-          # R_HOME must point to the portable R so start-server.R adds the bundled library to .libPaths()
-          export R_HOME="$DIST/resources/R-portable"
+          # Use R_LIBS (not R_HOME) — the bundled Rscript binary has R_HOME compiled-in and
+          # prints "WARNING: ignoring environment value of R_HOME" when overridden.
+          # R always respects R_LIBS and adds it to .libPaths() at startup.
+          export R_LIBS="$DIST/resources/R-portable/library"
 
           echo "Starting R server on port $PORT..."
           "$RSCRIPT" "$PLUMBER_DIR/start-server.R" "$PORT" "$PLUMBER_DIR" "$WEB_DIR" \
@@ -222,6 +224,31 @@ jobs:
 
           # Copy R.framework
           cp -R "$R_FRAMEWORK" "$OUTPUT_DIR/"
+
+          # ── Prune unwanted R framework versions ──────────────────────────
+          # The runner may have a pre-installed R version (e.g. 4.5-x86_64)
+          # in addition to the one installed by setup-r (e.g. 4.4-arm64).
+          # Keeping both causes ABI mismatches: packages compiled by setup-r's
+          # R fail to load in the other R.  Keep only the version that matches.
+          ARCH_SUFFIX_CLEAN="${{ matrix.arch == 'arm64' && 'arm64' || 'x86_64' }}"
+          R_VER_MAJOR=$(Rscript --vanilla -e "cat(R.version[['major']])")
+          R_VER_MINOR=$(Rscript --vanilla -e "cat(strsplit(R.version[['minor']], '.', fixed=TRUE)[[1]][1])")
+          KEEP_FWVER="${R_VER_MAJOR}.${R_VER_MINOR}-${ARCH_SUFFIX_CLEAN}"
+          echo "Pruning R.framework: keeping only '$KEEP_FWVER'"
+          for vdir in "$OUTPUT_DIR/R.framework/Versions"/*/; do
+            vname=$(basename "${vdir%/}")
+            if [[ "$vname" == "Current" ]] || [ -L "${vdir%/}" ]; then continue; fi
+            if [[ "$vname" != "$KEEP_FWVER" ]]; then
+              echo "  Removing: $vname"
+              rm -rf "${vdir%/}"
+            else
+              echo "  Keeping:  $vname"
+            fi
+          done
+          # Update the Current symlink to point to the kept version
+          rm -f "$OUTPUT_DIR/R.framework/Versions/Current"
+          ln -sf "$KEEP_FWVER" "$OUTPUT_DIR/R.framework/Versions/Current"
+          echo "R.framework/Versions/Current -> $KEEP_FWVER"
 
           # Create bin directory with wrapper scripts
           mkdir -p "$OUTPUT_DIR/bin"
@@ -436,28 +463,16 @@ jobs:
 
       - name: Install rchic package from source
         run: |
-          # Use the bundled R binary so the compiled rchic .so matches the bundled R architecture.
-          # Using the system R (setup-r) would compile for the runner arch which may differ.
-          R_BIN=$(find electron/R-portable-mac/R.framework/Versions -path "*/bin/R" -type f | head -1)
-          if [ -z "$R_BIN" ]; then
-            echo "ERROR: R binary not found in bundled framework"
-            find electron/R-portable-mac -name "R" 2>/dev/null | head -10 || true
-            exit 1
-          fi
-          echo "Bundled R binary: $R_BIN"
-
-          # Find library path matching the runner architecture
+          # Find library path matching the runner architecture.
+          # After pruning in the Prepare step, only one version remains in the
+          # bundle and it matches the setup-r version used to compile packages.
           ARCH_SUFFIX="${{ matrix.arch == 'arm64' && 'arm64' || 'x86_64' }}"
           LIB_PATH=$(find electron/R-portable-mac/R.framework/Versions -maxdepth 3 -type d -name "library" -path "*${ARCH_SUFFIX}*" | head -1)
           if [ -z "$LIB_PATH" ]; then
             LIB_PATH=$(find electron/R-portable-mac/R.framework/Versions -maxdepth 3 -type d -name "library" | head -1)
           fi
           echo "Installing rchic to ($ARCH_SUFFIX): $LIB_PATH"
-
-          R_HOME_BUNDLED="$(cd "$(dirname "$R_BIN")/.." && pwd)"
-          export R_HOME="$R_HOME_BUNDLED"
-          export DYLD_LIBRARY_PATH="$R_HOME/lib:${DYLD_LIBRARY_PATH:-}"
-          "$R_BIN" CMD INSTALL --library="$LIB_PATH" .
+          R CMD INSTALL --library="$LIB_PATH" .
 
       - name: Verify R installation
         run: |
@@ -485,8 +500,13 @@ jobs:
           APP_PATH=$(find electron/dist-portable-folder -maxdepth 2 -name "*.app" -type d | head -1)
           RESOURCES="$APP_PATH/Contents/Resources"
 
-          # Find R binary (main.js uses bin/R, not Rscript, on macOS)
-          R_BIN=$(find "$RESOURCES/R-portable/R.framework/Versions" -path "*/bin/R" -type f | head -1)
+          # Find R binary — prefer arch-matching version to avoid running x86_64
+          # R on an arm64 runner (or vice versa) after pruning in the Prepare step.
+          ARCH_SUFFIX_SMOKE="${{ matrix.arch == 'arm64' && 'arm64' || 'x86_64' }}"
+          R_BIN=$(find "$RESOURCES/R-portable/R.framework/Versions" -path "*${ARCH_SUFFIX_SMOKE}*/bin/R" -type f | head -1)
+          if [ -z "$R_BIN" ]; then
+            R_BIN=$(find "$RESOURCES/R-portable/R.framework/Versions" -path "*/bin/R" -type f | head -1)
+          fi
           if [ -z "$R_BIN" ]; then
             echo "ERROR: R binary not found under $RESOURCES/R-portable"
             find "$RESOURCES/R-portable" \( -name "R" -o -name "Rscript" \) 2>/dev/null | head -10 || true

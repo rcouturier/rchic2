@@ -415,6 +415,19 @@ async function startRServer() {
         }
       }
 
+      // On Linux, the bundled Rscript binary has R_HOME compiled-in and ignores env R_HOME.
+      // Set R_LIBS instead — R always respects it and adds it to .libPaths() at startup.
+      if (process.platform === 'linux') {
+        const rPortablePath = isDev
+          ? path.join(__dirname, '..', 'R-portable-linux')
+          : getResourcePath('R-portable');
+        const portableLib = path.join(rPortablePath, 'library');
+        if (fs.existsSync(portableLib)) {
+          rEnv.R_LIBS = portableLib;
+          log.info(`Set R_LIBS to: ${portableLib}`);
+        }
+      }
+
       // Build arguments depending on whether we're using R or Rscript
       const isRBin = rPath.endsWith('/R') || rPath.endsWith('\\R');
       const rArgs = isRBin
