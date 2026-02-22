@@ -433,6 +433,20 @@ function(threshold = 85, computing_mode = 1, complete_graph = FALSE, selected_va
       }
     }
 
+    # Construire et stocker la matrice d'implication (toutes variables selectionnees)
+    impl_matrix <- matrix(0, nrow = length(selected_variables), ncol = length(selected_variables))
+    colnames(impl_matrix) <- selected_variables
+    rownames(impl_matrix) <- selected_variables
+    for (i in 1:n) {
+      rule_parts <- strsplit(row.names(rules)[i], split = ' -> ')[[1]]
+      from <- rule_parts[1]
+      to <- rule_parts[2]
+      if (from %in% selected_variables && to %in% selected_variables) {
+        impl_matrix[from, to] <- rules[i, index_imp] / 100
+      }
+    }
+    .rchic_env$last_implicative_matrix <- impl_matrix
+
     # Messages de resultats
     rchic_message("")
     rchic_message(paste0(tr("selected_variables"), ": ", length(selected_variables)))
@@ -547,6 +561,7 @@ function(selected_variables = NULL, contribution_supp = FALSE, typicality_supp =
     sub_matrix <- similarity_matrix[selected, selected, drop = FALSE]
     sub_list_occ <- list_occurrences[selected]
     sub_variables <- list_variables[selected]
+    .rchic_env$last_similarity_matrix <- sub_matrix
 
     # Matrice de valeurs pour les contributions
     matrix_values <- as.matrix(.rchic_env$dataCSV[, -1, drop = FALSE])
@@ -725,6 +740,7 @@ function(computing_mode = 1, selected_variables = NULL, contribution_supp = FALS
 
     sub_matrix <- cohesion_matrix[selected, selected, drop = FALSE]
     sub_list_occ <- list_occurrences[selected]
+    .rchic_env$last_cohesion_matrix <- sub_matrix
 
     matrix_values <- as.matrix(.rchic_env$dataCSV[, -1, drop = FALSE])
     storage.mode(matrix_values) <- "numeric"
@@ -826,6 +842,63 @@ function(res) {
 
     # Convert to CSV string manually (no readr dependency)
     csv_lines <- capture.output(write.csv(rules, row.names = FALSE))
+    paste(csv_lines, collapse = "\n")
+  }, error = function(e) {
+    res$status <- 500
+    paste("error,", e$message)
+  })
+}
+
+#* Exporter la matrice d'implication en CSV
+#* @get /api/export/implicative-matrix
+#* @serializer contentType list(type="text/csv; charset=UTF-8")
+function(res) {
+  tryCatch({
+    if (is.null(.rchic_env$last_implicative_matrix)) {
+      res$status <- 404
+      return("error,No implicative graph computed")
+    }
+    m <- .rchic_env$last_implicative_matrix
+    df <- cbind(variable = rownames(m), as.data.frame(m))
+    csv_lines <- capture.output(write.csv(df, row.names = FALSE))
+    paste(csv_lines, collapse = "\n")
+  }, error = function(e) {
+    res$status <- 500
+    paste("error,", e$message)
+  })
+}
+
+#* Exporter la matrice de similarite en CSV
+#* @get /api/export/similarity-matrix
+#* @serializer contentType list(type="text/csv; charset=UTF-8")
+function(res) {
+  tryCatch({
+    if (is.null(.rchic_env$last_similarity_matrix)) {
+      res$status <- 404
+      return("error,No similarity tree computed")
+    }
+    m <- .rchic_env$last_similarity_matrix
+    df <- cbind(variable = rownames(m), as.data.frame(m))
+    csv_lines <- capture.output(write.csv(df, row.names = FALSE))
+    paste(csv_lines, collapse = "\n")
+  }, error = function(e) {
+    res$status <- 500
+    paste("error,", e$message)
+  })
+}
+
+#* Exporter la matrice de cohesion en CSV
+#* @get /api/export/cohesion-matrix
+#* @serializer contentType list(type="text/csv; charset=UTF-8")
+function(res) {
+  tryCatch({
+    if (is.null(.rchic_env$last_cohesion_matrix)) {
+      res$status <- 404
+      return("error,No hierarchy tree computed")
+    }
+    m <- .rchic_env$last_cohesion_matrix
+    df <- cbind(variable = rownames(m), as.data.frame(m))
+    csv_lines <- capture.output(write.csv(df, row.names = FALSE))
     paste(csv_lines, collapse = "\n")
   }, error = function(e) {
     res$status <- 500

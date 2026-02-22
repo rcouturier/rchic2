@@ -21,6 +21,11 @@ class RchicApp {
     this.currentData = null;
     this.currentTab = 'graph';  // Onglet actif
 
+    // Last implicative graph rules (for données de calcul tab)
+    this.lastImplicativeEdges = null;
+    this.lastImplicativeThreshold = null;
+    this.lastImplicativeMode = null;
+
     // Thresholds configuration
     this.thresholds = [
       { id: 1, enabled: true, value: 99, color: '#e74c3c' },
@@ -530,6 +535,16 @@ class RchicApp {
     // Helper to unwrap array values from R's JSON serialization
     const unwrap = (val) => Array.isArray(val) ? val[0] : val;
 
+    // Store all edges for the "données de calcul" tab
+    this.lastImplicativeThreshold = Array.isArray(data.threshold) ? data.threshold[0] : data.threshold;
+    this.lastImplicativeMode = Array.isArray(data.computing_mode) ? data.computing_mode[0] : data.computing_mode;
+    this.lastImplicativeEdges = (data.edges || []).map(e => ({
+      source: unwrap(e.source),
+      target: unwrap(e.target),
+      implication: unwrap(e.implication),
+      confidence: unwrap(e.confidence)
+    }));
+
     // Create nodes
     data.nodes.forEach(node => {
       elements.push({
@@ -1028,6 +1043,8 @@ class RchicApp {
       link.download = 'rchic_graph.png';
       link.href = png;
       link.click();
+      // Export implication matrix as CSV
+      await this.downloadMatrixFromAPI('/api/export/implicative-matrix', 'rchic_implicative_matrix.csv');
     } else {
       // Export tree as SVG
       const svg = document.querySelector('#tree-container svg');
@@ -1041,9 +1058,37 @@ class RchicApp {
         link.click();
         URL.revokeObjectURL(url);
       }
+      // Export matrix as CSV
+      if (this.currentAnalysis === 'similarity') {
+        await this.downloadMatrixFromAPI('/api/export/similarity-matrix', 'rchic_similarity_matrix.csv');
+      } else {
+        await this.downloadMatrixFromAPI('/api/export/cohesion-matrix', 'rchic_cohesion_matrix.csv');
+      }
     }
 
     this.showToast(window.i18n.t('messages.exportSuccess'), 'success');
+  }
+
+  async downloadMatrixFromAPI(endpoint, filename) {
+    try {
+      const response = await fetch(window.location.origin + endpoint);
+      if (!response.ok) return;
+      const csvText = await response.text();
+      if (csvText.startsWith('error,')) return;
+      this.downloadCSV(csvText, filename);
+    } catch (e) {
+      // silently ignore if matrix not available
+    }
+  }
+
+  downloadCSV(csvContent, filename) {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   // ==========================================================================
@@ -1087,6 +1132,7 @@ class RchicApp {
       const result = await response.json();
       if (result.success) {
         this.renderConsole(result.messages);
+        this.renderRulesInConsole();
       }
     } catch (e) {
       console.error('Error fetching console:', e);
@@ -1117,6 +1163,56 @@ class RchicApp {
     }).join('');
 
     // Scroll to bottom
+    outputEl.scrollTop = outputEl.scrollHeight;
+  }
+
+  renderRulesInConsole() {
+    const outputEl = document.getElementById('console-output');
+    if (!outputEl) return;
+
+    // Remove any previously rendered rules table
+    const old = outputEl.querySelector('.rules-table-section');
+    if (old) old.remove();
+
+    if (!this.lastImplicativeEdges || this.lastImplicativeEdges.length === 0) return;
+
+    const sorted = [...this.lastImplicativeEdges]
+      .sort((a, b) => b.implication - a.implication);
+    const threshold = this.lastImplicativeThreshold;
+
+    const modeIndexKeys = {
+      1: 'classicIndex',
+      2: 'classicIndex',
+      3: 'implicanceIndex',
+      4: 'entropicIndex'
+    };
+    const indexKey = modeIndexKeys[this.lastImplicativeMode] || 'index';
+    const indexLabel = window.i18n.t(`rules.${indexKey}`);
+
+    const rows = sorted.map(e => `
+      <tr>
+        <td>${this.escapeHtml(String(e.source))}</td>
+        <td>${this.escapeHtml(String(e.target))}</td>
+        <td class="num">${parseFloat(e.implication).toFixed(2)}</td>
+        <td class="num">${parseFloat(e.confidence).toFixed(3)}</td>
+      </tr>`).join('');
+
+    const section = document.createElement('div');
+    section.className = 'rules-table-section';
+    section.innerHTML = `
+      <div class="rules-table-title">${window.i18n.t('rules.title', { threshold, count: sorted.length })}</div>
+      <table class="rules-table">
+        <thead>
+          <tr>
+            <th>${window.i18n.t('rules.hypothesis')}</th>
+            <th>${window.i18n.t('rules.conclusion')}</th>
+            <th>${indexLabel}</th>
+            <th>${window.i18n.t('rules.confidence')}</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    outputEl.appendChild(section);
     outputEl.scrollTop = outputEl.scrollHeight;
   }
 

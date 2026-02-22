@@ -23,7 +23,7 @@ class I18n {
   async load(locale) {
     try {
       // Load requested locale
-      const response = await fetch(`locales/${locale}.json`);
+      const response = await fetch(`locales/${locale}.json`, { cache: 'no-store' });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       this.translations = await response.json();
       this.locale = locale;
@@ -32,7 +32,7 @@ class I18n {
       // Load fallback (English) if not already loaded
       if (locale !== 'en' && Object.keys(this.fallback).length === 0) {
         try {
-          const fallbackResponse = await fetch('locales/en.json');
+          const fallbackResponse = await fetch('locales/en.json', { cache: 'no-store' });
           if (fallbackResponse.ok) {
             this.fallback = await fallbackResponse.json();
           }
