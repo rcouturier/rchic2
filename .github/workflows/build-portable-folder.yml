@@ -461,23 +461,40 @@ jobs:
           echo "R Portable prepared at $OUTPUT_DIR"
           ls -la "$ACTUAL_LIB" | head -30
 
-      - name: Remove headers and docs from R.framework
+      - name: Remove headers, docs and strip binaries from R.framework
         run: |
           FW="electron/R-portable-mac/R.framework"
+
+          echo "Size before cleanup: $(du -sh "$FW" | cut -f1)"
 
           # Remove C headers (not needed at runtime)
           find "$FW" -maxdepth 5 -type d -name "include" | xargs rm -rf
 
-          # Remove R documentation
+          # Remove R documentation directory
           find "$FW" -maxdepth 5 -type d -name "doc" | xargs rm -rf
 
-          # Remove per-package HTML docs, tests, demos
-          find "$FW" -path "*/library/*/html"  -type d | xargs rm -rf
-          find "$FW" -path "*/library/*/tests" -type d | xargs rm -rf
-          find "$FW" -path "*/library/*/demo"  -type d | xargs rm -rf
+          # Remove per-package HTML docs, tests, demos, help sources
+          find "$FW" -path "*/library/*/html"   -type d | xargs rm -rf
+          find "$FW" -path "*/library/*/tests"  -type d | xargs rm -rf
+          find "$FW" -path "*/library/*/demo"   -type d | xargs rm -rf
 
-          echo "Size after cleanup:"
-          du -sh "$FW"
+          # Remove compiled help databases (not needed at runtime)
+          find "$FW" -path "*/library/*/help" -type d | xargs rm -rf
+
+          # Remove R source files kept alongside bytecode
+          find "$FW" -path "*/library/*/R/*.R" -type f | xargs rm -f
+
+          # Strip debug symbols from all .dylib files
+          find "$FW" -name "*.dylib" -type f | while read f; do
+            strip -x "$f" 2>/dev/null || true
+          done
+
+          # Strip debug symbols from .so files (R package shared libs)
+          find "$FW" -name "*.so" -type f | while read f; do
+            strip -x "$f" 2>/dev/null || true
+          done
+
+          echo "Size after cleanup: $(du -sh "$FW" | cut -f1)"
 
       - name: Install rchic package from source
         run: |
