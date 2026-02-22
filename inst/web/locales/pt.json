@@ -38,7 +38,7 @@
   },
   "actions": {
     "compute": "Calcular",
-    "export": "Exportar PNG",
+    "export": "Exportar imagem & dados",
     "selectAll": "Todos",
     "selectNone": "Nenhum",
     "refresh": "Atualizar",
@@ -56,6 +56,22 @@
   },
   "details": {
     "title": "Detalhes"
+  },
+  "export": {
+    "variable1": "Variável 1",
+    "variable2": "Variável 2",
+    "similarity": "Similaridade",
+    "cohesion": "Coesão"
+  },
+  "rules": {
+    "title": "Regras no limiar {threshold} — {count} regra(s)",
+    "hypothesis": "Hipótese",
+    "conclusion": "Conclusão",
+    "confidence": "Confiança",
+    "index": "Índice",
+    "classicIndex": "Índice clássico",
+    "implicanceIndex": "Índice de implifiance",
+    "entropicIndex": "Índice entrópico"
   },
   "messages": {
     "loadFilePrompt": "Carregue um arquivo CSV para iniciar a análise",

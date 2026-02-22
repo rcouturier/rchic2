@@ -738,6 +738,65 @@ body {
 }
 
 /* =============================================================================
+   Rules Table (in Données de calcul tab)
+   ============================================================================= */
+
+.rules-table-section {
+  margin-top: 20px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #34495e;
+}
+
+.rules-table-title {
+  padding: 8px 14px;
+  font-weight: 600;
+  color: #3498db;
+  font-size: 0.85rem;
+  background: #1a252f;
+  border-bottom: 1px solid #34495e;
+  font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+}
+
+.rules-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+}
+
+.rules-table th {
+  padding: 7px 12px;
+  text-align: left;
+  color: #95a5a6;
+  font-weight: 600;
+  border-bottom: 1px solid #34495e;
+  font-size: 0.78rem;
+  background: #1e2d3d;
+}
+
+.rules-table td {
+  padding: 5px 12px;
+  color: #ecf0f1;
+  border-bottom: 1px solid #2c3e50;
+  background: #1a2535;
+}
+
+.rules-table td.num {
+  text-align: right;
+  color: #2ecc71;
+  font-variant-numeric: tabular-nums;
+}
+
+.rules-table tr:last-child td {
+  border-bottom: none;
+}
+
+.rules-table tr:hover td {
+  background: #253545;
+}
+
+/* =============================================================================
    Language Selector
    ============================================================================= */
 

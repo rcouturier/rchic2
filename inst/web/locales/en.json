@@ -38,7 +38,7 @@
   },
   "actions": {
     "compute": "Compute",
-    "export": "Export PNG",
+    "export": "Export image & data",
     "selectAll": "All",
     "selectNone": "None",
     "refresh": "Refresh",
@@ -56,6 +56,22 @@
   },
   "details": {
     "title": "Details"
+  },
+  "export": {
+    "variable1": "Variable 1",
+    "variable2": "Variable 2",
+    "similarity": "Similarity",
+    "cohesion": "Cohesion"
+  },
+  "rules": {
+    "title": "Rules at threshold {threshold} — {count} rules",
+    "hypothesis": "Hypothesis",
+    "conclusion": "Conclusion",
+    "confidence": "Confidence",
+    "index": "Index",
+    "classicIndex": "Classical index",
+    "implicanceIndex": "Implifiance index",
+    "entropicIndex": "Entropic index"
   },
   "messages": {
     "loadFilePrompt": "Load a CSV file to start the analysis",
