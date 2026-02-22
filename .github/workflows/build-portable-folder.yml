@@ -461,6 +461,24 @@ jobs:
           echo "R Portable prepared at $OUTPUT_DIR"
           ls -la "$ACTUAL_LIB" | head -30
 
+      - name: Remove headers and docs from R.framework
+        run: |
+          FW="electron/R-portable-mac/R.framework"
+
+          # Remove C headers (not needed at runtime)
+          find "$FW" -maxdepth 5 -type d -name "include" | xargs rm -rf
+
+          # Remove R documentation
+          find "$FW" -maxdepth 5 -type d -name "doc" | xargs rm -rf
+
+          # Remove per-package HTML docs, tests, demos
+          find "$FW" -path "*/library/*/html"  -type d | xargs rm -rf
+          find "$FW" -path "*/library/*/tests" -type d | xargs rm -rf
+          find "$FW" -path "*/library/*/demo"  -type d | xargs rm -rf
+
+          echo "Size after cleanup:"
+          du -sh "$FW"
+
       - name: Install rchic package from source
         run: |
           # Find library path matching the runner architecture.
