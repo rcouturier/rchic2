@@ -81,6 +81,44 @@ jobs:
           echo "R Portable prepared at $OUTPUT_DIR"
           ls -la "$OUTPUT_DIR/library" | head -30
 
+      - name: Remove docs, translations and strip binaries for Linux
+        run: |
+          RD="electron/R-portable-linux"
+
+          echo "Size before cleanup: $(du -sh "$RD" | cut -f1)"
+
+          # Remove C headers (not needed at runtime)
+          find "$RD" -maxdepth 5 -type d -name "include" | xargs rm -rf
+
+          # Remove R documentation
+          find "$RD" -maxdepth 5 -type d -name "doc" | xargs rm -rf
+
+          # Remove per-package docs/tests/translations
+          find "$RD" -path "*/library/*/html"      -type d | xargs rm -rf
+          find "$RD" -path "*/library/*/tests"     -type d | xargs rm -rf
+          find "$RD" -path "*/library/*/demo"      -type d | xargs rm -rf
+          find "$RD" -path "*/library/*/vignettes" -type d | xargs rm -rf
+          find "$RD" -path "*/library/*/po"        -type d | xargs rm -rf
+          find "$RD" -path "*/library/*/tinytest"  -type d | xargs rm -rf
+          find "$RD" -path "*/library/*/unitTests" -type d | xargs rm -rf
+          find "$RD" -path "*/library/*/help"      -type d | xargs rm -rf
+          find "$RD" -path "*/library/*/R/*.R"     -type f | xargs rm -f
+
+          # Remove static libraries
+          find "$RD" -name "*.a" -type f | xargs rm -f
+
+          # Remove share/ subdirectories not needed at runtime
+          find "$RD" -maxdepth 5 -path "*/share/locale" -type d | xargs rm -rf
+          find "$RD" -maxdepth 5 -path "*/share/man"    -type d | xargs rm -rf
+          find "$RD" -maxdepth 5 -path "*/share/doc"    -type d | xargs rm -rf
+          find "$RD" -maxdepth 5 -path "*/share/info"   -type d | xargs rm -rf
+
+          # Strip debug symbols
+          find "$RD" -name "*.so"  -type f | while read f; do strip --strip-debug "$f" 2>/dev/null || true; done
+          find "$RD" -name "*.so.*" -type f | while read f; do strip --strip-debug "$f" 2>/dev/null || true; done
+
+          echo "Size after cleanup: $(du -sh "$RD" | cut -f1)"
+
       - name: Install rchic package from source
         run: |
           R CMD INSTALL --library=electron/R-portable-linux/library .
@@ -474,15 +512,29 @@ jobs:
           find "$FW" -maxdepth 5 -type d -name "doc" | xargs rm -rf
 
           # Remove per-package HTML docs, tests, demos, help sources
-          find "$FW" -path "*/library/*/html"   -type d | xargs rm -rf
-          find "$FW" -path "*/library/*/tests"  -type d | xargs rm -rf
-          find "$FW" -path "*/library/*/demo"   -type d | xargs rm -rf
+          find "$FW" -path "*/library/*/html"      -type d | xargs rm -rf
+          find "$FW" -path "*/library/*/tests"     -type d | xargs rm -rf
+          find "$FW" -path "*/library/*/demo"      -type d | xargs rm -rf
+          find "$FW" -path "*/library/*/vignettes" -type d | xargs rm -rf
+          find "$FW" -path "*/library/*/po"        -type d | xargs rm -rf
+          find "$FW" -path "*/library/*/tinytest"  -type d | xargs rm -rf
+          find "$FW" -path "*/library/*/unitTests" -type d | xargs rm -rf
 
           # Remove compiled help databases (not needed at runtime)
           find "$FW" -path "*/library/*/help" -type d | xargs rm -rf
 
           # Remove R source files kept alongside bytecode
           find "$FW" -path "*/library/*/R/*.R" -type f | xargs rm -f
+
+          # Remove static libraries (not needed at runtime)
+          find "$FW" -name "*.a" -type f | xargs rm -f
+
+          # Remove share/ subdirectories that are not needed at runtime
+          # (keep share/R/ which contains base R scripts used at startup)
+          find "$FW" -maxdepth 6 -path "*/share/locale" -type d | xargs rm -rf
+          find "$FW" -maxdepth 6 -path "*/share/man"    -type d | xargs rm -rf
+          find "$FW" -maxdepth 6 -path "*/share/doc"    -type d | xargs rm -rf
+          find "$FW" -maxdepth 6 -path "*/share/info"   -type d | xargs rm -rf
 
           # Strip debug symbols from all .dylib files
           find "$FW" -name "*.dylib" -type f | while read f; do
