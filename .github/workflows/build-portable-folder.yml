@@ -81,6 +81,10 @@ jobs:
           echo "R Portable prepared at $OUTPUT_DIR"
           ls -la "$OUTPUT_DIR/library" | head -30
 
+      - name: Install rchic package from source
+        run: |
+          R CMD INSTALL --library=electron/R-portable-linux/library .
+
       - name: Remove docs, translations and strip binaries for Linux
         run: |
           RD="electron/R-portable-linux"
@@ -118,10 +122,6 @@ jobs:
           find "$RD" -name "*.so.*" -type f | while read f; do strip --strip-debug "$f" 2>/dev/null || true; done
 
           echo "Size after cleanup: $(du -sh "$RD" | cut -f1)"
-
-      - name: Install rchic package from source
-        run: |
-          R CMD INSTALL --library=electron/R-portable-linux/library .
 
       - name: Verify R installation
         run: |
