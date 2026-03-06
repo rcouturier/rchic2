@@ -1,10 +1,39 @@
 const { app, BrowserWindow, Menu, dialog, shell, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const http = require('http');
 const os = require('os');
 const { spawn, execSync } = require('child_process');
 const portfinder = require('portfinder');
 const log = require('electron-log');
+
+// ---------------------------------------------------------------------------
+// Window state persistence
+// ---------------------------------------------------------------------------
+
+const WINDOW_STATE_FILE = path.join(app.getPath('userData'), 'window-state.json');
+const DEFAULT_WINDOW_STATE = { width: 1400, height: 900, x: undefined, y: undefined, maximized: false };
+
+function loadWindowState() {
+  try {
+    if (fs.existsSync(WINDOW_STATE_FILE)) {
+      return { ...DEFAULT_WINDOW_STATE, ...JSON.parse(fs.readFileSync(WINDOW_STATE_FILE, 'utf8')) };
+    }
+  } catch (e) {
+    log.warn('Could not load window state:', e.message);
+  }
+  return { ...DEFAULT_WINDOW_STATE };
+}
+
+function saveWindowState(win) {
+  try {
+    const bounds = win.getBounds();
+    const state = { ...bounds, maximized: win.isMaximized() };
+    fs.writeFileSync(WINDOW_STATE_FILE, JSON.stringify(state), 'utf8');
+  } catch (e) {
+    log.warn('Could not save window state:', e.message);
+  }
+}
 
 // i18n for menus
 let currentLocale = 'fr';
@@ -365,168 +394,161 @@ function getRPath() {
 // Start R Plumber server
 // ---------------------------------------------------------------------------
 async function startRServer() {
-  return new Promise(async (resolve, reject) => {
-    try {
-      // --- Port ---
-      sendSplashStatus('port', 'pending', 'Finding available port...');
-      portfinder.basePort = 8484;
-      serverPort = await portfinder.getPortPromise();
-      sendSplashStatus('port', 'success', `Port ${serverPort} is available`);
-      log.info(`Using port: ${serverPort}`);
+  // --- Port ---
+  sendSplashStatus('port', 'pending', 'Finding available port...');
+  portfinder.basePort = 8484;
+  serverPort = await portfinder.getPortPromise();
+  sendSplashStatus('port', 'success', `Port ${serverPort} is available`);
+  log.info(`Using port: ${serverPort}`);
 
-      // --- Locate R ---
-      sendSplashStatus('r-locate', 'pending', 'Locating R installation...');
-      const rPath = getRPath();
+  // --- Locate R ---
+  sendSplashStatus('r-locate', 'pending', 'Locating R installation...');
+  const rPath = getRPath();
 
-      const isBundled = rPath.includes('R-portable') || rPath.includes('R.framework');
-      const fallbackToPath = rPath === 'Rscript' || rPath === 'Rscript.exe';
+  const isBundled = rPath.includes('R-portable') || rPath.includes('R.framework');
+  const fallbackToPath = rPath === 'Rscript' || rPath === 'Rscript.exe';
 
-      if (fallbackToPath) {
-        sendSplashStatus('r-locate', 'warning',
-          'Bundled R not found — using system PATH',
-          'Install R if the application fails to start');
-      } else if (isBundled) {
-        sendSplashStatus('r-locate', 'success', 'Bundled R found', rPath);
-      } else {
-        sendSplashStatus('r-locate', 'success', 'System R found', rPath);
-      }
-      log.info(`R path: ${rPath}`);
+  if (fallbackToPath) {
+    sendSplashStatus('r-locate', 'warning',
+      'Bundled R not found — using system PATH',
+      'Install R if the application fails to start');
+  } else if (isBundled) {
+    sendSplashStatus('r-locate', 'success', 'Bundled R found', rPath);
+  } else {
+    sendSplashStatus('r-locate', 'success', 'System R found', rPath);
+  }
+  log.info(`R path: ${rPath}`);
 
-      const plumberPath = getResourcePath('plumber');
-      const webPath = getResourcePath('web');
-      const startScript = isDev
-        ? path.join(__dirname, 'start-server.R')
-        : path.join(process.resourcesPath, 'plumber', 'start-server.R');
+  const plumberPath = getResourcePath('plumber');
+  const webPath = getResourcePath('web');
+  const startScript = isDev
+    ? path.join(__dirname, 'start-server.R')
+    : path.join(process.resourcesPath, 'plumber', 'start-server.R');
 
-      log.info(`Plumber path: ${plumberPath}`);
-      log.info(`Web path: ${webPath}`);
-      log.info(`Start script: ${startScript}`);
+  log.info(`Plumber path: ${plumberPath}`);
+  log.info(`Web path: ${webPath}`);
+  log.info(`Start script: ${startScript}`);
 
-      // Build environment with R_HOME for macOS
-      const rEnv = { ...process.env };
+  // Build environment with R_HOME for macOS
+  const rEnv = { ...process.env };
 
-      // On macOS, derive R_HOME from the selected bin/R path
-      if (process.platform === 'darwin') {
-        const rDir  = path.dirname(rPath); // .../bin
-        const rHome = path.dirname(rDir);  // .../Resources
-        if (fs.existsSync(rHome)) {
-          rEnv.R_HOME = rHome;
-          log.info(`Set R_HOME to: ${rEnv.R_HOME}`);
-        }
-      }
-
-      // On Linux, the bundled Rscript binary has R_HOME compiled-in and ignores env R_HOME.
-      // Set R_LIBS instead — R always respects it and adds it to .libPaths() at startup.
-      if (process.platform === 'linux') {
-        const rPortablePath = isDev
-          ? path.join(__dirname, '..', 'R-portable-linux')
-          : getResourcePath('R-portable');
-        const portableLib = path.join(rPortablePath, 'library');
-        if (fs.existsSync(portableLib)) {
-          rEnv.R_LIBS = portableLib;
-          log.info(`Set R_LIBS to: ${portableLib}`);
-        }
-      }
-
-      // Build arguments depending on whether we're using R or Rscript
-      const isRBin = rPath.endsWith('/R') || rPath.endsWith('\\R');
-      const rArgs = isRBin
-        ? ['--slave', '--no-restore', `--file=${startScript}`, '--args', serverPort.toString(), plumberPath, webPath]
-        : [startScript, serverPort.toString(), plumberPath, webPath];
-
-      log.info(`Using ${isRBin ? 'R' : 'Rscript'} with args: ${rArgs.join(' ')}`);
-
-      // --- Spawn R ---
-      sendSplashStatus('r-start', 'pending', 'Starting R process...');
-      rProcess = spawn(rPath, rArgs, {
-        cwd: plumberPath,
-        env: rEnv
-      });
-
-      // settled guards against resolve/reject being called more than once
-      let settled = false;
-      const settle = (fn, value) => { if (!settled) { settled = true; fn(value); } };
-
-      // Accumulate stderr lines for crash diagnosis
-      const stderrLines = [];
-
-      rProcess.stdout.on('data', (data) => {
-        log.info(`R stdout: ${data}`);
-      });
-
-      rProcess.stderr.on('data', (data) => {
-        const message = data.toString();
-        log.info(`R: ${message}`);
-
-        // Collect non-empty lines for crash diagnosis
-        message.split('\n').forEach(l => { if (l.trim()) stderrLines.push(l.trim()); });
-
-        // Server is up
-        if (!settled && (message.includes('Running') || message.includes('Starting server'))) {
-          sendSplashStatus('r-start', 'success', 'R server started', `Listening on port ${serverPort}`);
-          setTimeout(() => settle(resolve, serverPort), 1000);
-        }
-
-        // Surface R error lines in the splash before the server starts
-        if (!settled) {
-          const errorLines = message.split('\n').filter(l =>
-            /^Error\b|^ERROR\b|cannot open|permission denied|no such file|package .* not found/i.test(l.trim())
-          );
-          if (errorLines.length > 0) {
-            sendSplashStatus('r-errors', 'warning',
-              'R reported an issue',
-              errorLines[0].trim().substring(0, 120));
-            log.warn('R error line:', errorLines[0]);
-          }
-        }
-      });
-
-      rProcess.on('error', (err) => {
-        log.error(`Failed to start R: ${err}`);
-        log.error(`R path was: ${rPath}`);
-        sendSplashStatus('r-start', 'error', 'Failed to launch R', err.message);
-        settle(reject, err);
-      });
-
-      rProcess.on('close', (code) => {
-        log.info(`R process exited with code ${code}`);
-        rProcess = null;
-
-        if (!settled && code !== null && code !== 0) {
-          // R crashed before the server ever started
-          const errorSummary = stderrLines
-            .filter(l => /error|fatal|cannot|failed|missing|package/i.test(l))
-            .slice(0, 2)
-            .join('  |  ') || `Exit code: ${code}`;
-          sendSplashStatus('r-crash', 'error',
-            `R process exited unexpectedly (code ${code})`,
-            errorSummary);
-          log.error('R crashed before server started:', errorSummary);
-          settle(reject, new Error(`R exited with code ${code}: ${errorSummary}`));
-        } else if (!settled) {
-          // R exited cleanly (code 0) but server never confirmed — unusual
-          sendSplashStatus('r-crash', 'warning',
-            'R process ended before server started',
-            'Trying to connect anyway...');
-          settle(resolve, serverPort);
-        }
-      });
-
-      // 5 s timeout: if R hasn't confirmed startup yet, proceed and let waitForServer decide
-      setTimeout(() => {
-        if (!settled) {
-          sendSplashStatus('r-start', 'warning',
-            'R startup confirmation not received',
-            'Attempting to connect anyway...');
-          settle(resolve, serverPort);
-        }
-      }, 5000);
-
-    } catch (err) {
-      log.error(`Error starting R server: ${err}`);
-      sendSplashStatus('r-start', 'error', 'R server error', err.message);
-      reject(err);
+  // On macOS, derive R_HOME from the selected bin/R path
+  if (process.platform === 'darwin') {
+    const rDir  = path.dirname(rPath); // .../bin
+    const rHome = path.dirname(rDir);  // .../Resources
+    if (fs.existsSync(rHome)) {
+      rEnv.R_HOME = rHome;
+      log.info(`Set R_HOME to: ${rEnv.R_HOME}`);
     }
+  }
+
+  // On Linux, the bundled Rscript binary has R_HOME compiled-in and ignores env R_HOME.
+  // Set R_LIBS instead — R always respects it and adds it to .libPaths() at startup.
+  if (process.platform === 'linux') {
+    const rPortablePath = isDev
+      ? path.join(__dirname, '..', 'R-portable-linux')
+      : getResourcePath('R-portable');
+    const portableLib = path.join(rPortablePath, 'library');
+    if (fs.existsSync(portableLib)) {
+      rEnv.R_LIBS = portableLib;
+      log.info(`Set R_LIBS to: ${portableLib}`);
+    }
+  }
+
+  // Build arguments depending on whether we're using R or Rscript
+  const isRBin = rPath.endsWith('/R') || rPath.endsWith('\\R');
+  const rArgs = isRBin
+    ? ['--slave', '--no-restore', `--file=${startScript}`, '--args', serverPort.toString(), plumberPath, webPath]
+    : [startScript, serverPort.toString(), plumberPath, webPath];
+
+  log.info(`Using ${isRBin ? 'R' : 'Rscript'} with args: ${rArgs.join(' ')}`);
+
+  // --- Spawn R ---
+  sendSplashStatus('r-start', 'pending', 'Starting R process...');
+  rProcess = spawn(rPath, rArgs, {
+    cwd: plumberPath,
+    env: rEnv
+  });
+
+  return new Promise((resolve, reject) => {
+    // settled guards against resolve/reject being called more than once
+    let settled = false;
+    const settle = (fn, value) => { if (!settled) { settled = true; fn(value); } };
+
+    // Accumulate stderr lines for crash diagnosis
+    const stderrLines = [];
+
+    rProcess.stdout.on('data', (data) => {
+      log.info(`R stdout: ${data}`);
+    });
+
+    rProcess.stderr.on('data', (data) => {
+      const message = data.toString();
+      log.info(`R: ${message}`);
+
+      // Collect non-empty lines for crash diagnosis
+      message.split('\n').forEach(l => { if (l.trim()) stderrLines.push(l.trim()); });
+
+      // Server is up
+      if (!settled && (message.includes('Running') || message.includes('Starting server'))) {
+        sendSplashStatus('r-start', 'success', 'R server started', `Listening on port ${serverPort}`);
+        setTimeout(() => settle(resolve, serverPort), 1000);
+      }
+
+      // Surface R error lines in the splash before the server starts
+      if (!settled) {
+        const errorLines = message.split('\n').filter(l =>
+          /^Error\b|^ERROR\b|cannot open|permission denied|no such file|package .* not found/i.test(l.trim())
+        );
+        if (errorLines.length > 0) {
+          sendSplashStatus('r-errors', 'warning',
+            'R reported an issue',
+            errorLines[0].trim().substring(0, 120));
+          log.warn('R error line:', errorLines[0]);
+        }
+      }
+    });
+
+    rProcess.on('error', (err) => {
+      log.error(`Failed to start R: ${err}`);
+      log.error(`R path was: ${rPath}`);
+      sendSplashStatus('r-start', 'error', 'Failed to launch R', err.message);
+      settle(reject, err);
+    });
+
+    rProcess.on('close', (code) => {
+      log.info(`R process exited with code ${code}`);
+      rProcess = null;
+
+      if (!settled && code !== null && code !== 0) {
+        // R crashed before the server ever started
+        const errorSummary = stderrLines
+          .filter(l => /error|fatal|cannot|failed|missing|package/i.test(l))
+          .slice(0, 2)
+          .join('  |  ') || `Exit code: ${code}`;
+        sendSplashStatus('r-crash', 'error',
+          `R process exited unexpectedly (code ${code})`,
+          errorSummary);
+        log.error('R crashed before server started:', errorSummary);
+        settle(reject, new Error(`R exited with code ${code}: ${errorSummary}`));
+      } else if (!settled) {
+        // R exited cleanly (code 0) but server never confirmed — unusual
+        sendSplashStatus('r-crash', 'warning',
+          'R process ended before server started',
+          'Trying to connect anyway...');
+        settle(resolve, serverPort);
+      }
+    });
+
+    // 5 s timeout: if R hasn't confirmed startup yet, proceed and let waitForServer decide
+    setTimeout(() => {
+      if (!settled) {
+        sendSplashStatus('r-start', 'warning',
+          'R startup confirmation not received',
+          'Attempting to connect anyway...');
+        settle(resolve, serverPort);
+      }
+    }, 5000);
   });
 }
 
@@ -615,20 +637,25 @@ function createWindow() {
   log.info('Preload path:', preloadPath);
   log.info('Preload exists:', fs.existsSync(preloadPath));
 
+  const winState = loadWindowState();
+
   mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
+    width: winState.width,
+    height: winState.height,
+    x: winState.x,
+    y: winState.y,
     minWidth: 800,
     minHeight: 600,
     icon: path.join(__dirname, '..', 'assets', 'icon.png'),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: false,
       preload: preloadPath
     },
     show: false
   });
+
+  if (winState.maximized) mainWindow.maximize();
 
   // Create menu with current locale
   buildMenu();
@@ -644,6 +671,12 @@ function createWindow() {
       splashWindow = null;
     }
   });
+
+  // Persist window state on close/resize/move
+  const persistState = () => saveWindowState(mainWindow);
+  mainWindow.on('resize', persistState);
+  mainWindow.on('move', persistState);
+  mainWindow.on('close', persistState);
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -663,17 +696,7 @@ async function openFile() {
   });
 
   if (!result.canceled && result.filePaths.length > 0) {
-    const filePath = result.filePaths[0];
-    mainWindow.webContents.executeJavaScript(`
-      fetch('${filePath}')
-        .then(r => r.text())
-        .then(content => {
-          // Trigger file load in the app
-          if (window.rchicApp) {
-            window.rchicApp.loadFileFromPath('${filePath.replace(/\\/g, '\\\\')}');
-          }
-        });
-    `);
+    mainWindow.webContents.send('open-file', result.filePaths[0]);
   }
 }
 
@@ -693,7 +716,6 @@ function showAbout() {
 // Wait for server to be ready
 // ---------------------------------------------------------------------------
 async function waitForServer(port, maxAttempts = 120) {
-  const http = require('http');
   for (let i = 0; i < maxAttempts; i++) {
     try {
       await new Promise((resolve, reject) => {
@@ -803,7 +825,6 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
-  stopRServer();
   if (splashWindow && !splashWindow.isDestroyed()) {
     splashWindow.close();
     splashWindow = null;
