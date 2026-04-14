@@ -27,10 +27,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -197,7 +197,7 @@ jobs:
           zip -r Rchic2-Portable-Linux.zip Rchic2-Linux
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Rchic2-Portable-Linux
           path: electron/dist-portable-folder/Rchic2-Portable-Linux.zip
@@ -220,10 +220,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -657,7 +657,7 @@ jobs:
           zip -r "Rchic2-Portable-macOS-${ARCH_NAME}.zip" "${FOLDER_NAME}"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Rchic2-Portable-macOS-${{ matrix.arch-name }}
           path: electron/dist-portable-folder/Rchic2-Portable-macOS-${{ matrix.arch-name }}.zip
@@ -671,10 +671,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -837,7 +837,7 @@ jobs:
           Compress-Archive -Path Rchic2-Windows -DestinationPath Rchic2-Portable-Windows.zip
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Rchic2-Portable-Windows
           path: electron/dist-portable-folder/Rchic2-Portable-Windows.zip
