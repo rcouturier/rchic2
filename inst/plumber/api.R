@@ -819,6 +819,17 @@ function(computing_mode = 1, selected_variables = NULL, contribution_supp = FALS
 # Export des resultats
 # =============================================================================
 
+# Fonction d'export CSV selon la locale
+# fr/pt -> write.csv2 (sep=";", dec=",")
+# en    -> write.csv  (sep=",", dec=".")
+write_csv_locale <- function(x, ...) {
+  if (.rchic_env$locale %in% c("fr", "pt")) {
+    write.csv2(x, ...)
+  } else {
+    write.csv(x, ...)
+  }
+}
+
 #* Exporter les regles en CSV
 #* @get /api/export/rules
 #* @serializer contentType list(type="text/csv; charset=UTF-8")
@@ -841,7 +852,7 @@ function(res) {
     rules <- rules[, c("rule", names(rules)[names(rules) != "rule"])]
 
     # Convert to CSV string manually (no readr dependency)
-    csv_lines <- capture.output(write.csv(rules, row.names = FALSE))
+    csv_lines <- capture.output(write_csv_locale(rules, row.names = FALSE))
     paste(csv_lines, collapse = "\n")
   }, error = function(e) {
     res$status <- 500
@@ -860,7 +871,7 @@ function(res) {
     }
     m <- .rchic_env$last_implicative_matrix
     df <- cbind(variable = rownames(m), as.data.frame(m))
-    csv_lines <- capture.output(write.csv(df, row.names = FALSE))
+    csv_lines <- capture.output(write_csv_locale(df, row.names = FALSE))
     paste(csv_lines, collapse = "\n")
   }, error = function(e) {
     res$status <- 500
@@ -879,7 +890,7 @@ function(res) {
     }
     m <- .rchic_env$last_similarity_matrix
     df <- cbind(variable = rownames(m), as.data.frame(m))
-    csv_lines <- capture.output(write.csv(df, row.names = FALSE))
+    csv_lines <- capture.output(write_csv_locale(df, row.names = FALSE))
     paste(csv_lines, collapse = "\n")
   }, error = function(e) {
     res$status <- 500
@@ -898,7 +909,7 @@ function(res) {
     }
     m <- .rchic_env$last_cohesion_matrix
     df <- cbind(variable = rownames(m), as.data.frame(m))
-    csv_lines <- capture.output(write.csv(df, row.names = FALSE))
+    csv_lines <- capture.output(write_csv_locale(df, row.names = FALSE))
     paste(csv_lines, collapse = "\n")
   }, error = function(e) {
     res$status <- 500
