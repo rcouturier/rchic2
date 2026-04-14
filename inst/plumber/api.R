@@ -852,7 +852,7 @@ function(res) {
     rules <- rules[, c("rule", names(rules)[names(rules) != "rule"])]
 
     # Convert to CSV string manually (no readr dependency)
-    csv_lines <- capture.output(write_csv_locale(rules, row.names = FALSE))
+    csv_lines <- capture.output(write_csv_locale(rules, row.names = FALSE, quote = FALSE))
     paste(csv_lines, collapse = "\n")
   }, error = function(e) {
     res$status <- 500
@@ -871,7 +871,7 @@ function(res) {
     }
     m <- .rchic_env$last_implicative_matrix
     df <- cbind(variable = rownames(m), as.data.frame(m))
-    csv_lines <- capture.output(write_csv_locale(df, row.names = FALSE))
+    csv_lines <- capture.output(write_csv_locale(df, row.names = FALSE, quote = FALSE))
     paste(csv_lines, collapse = "\n")
   }, error = function(e) {
     res$status <- 500
@@ -890,7 +890,7 @@ function(res) {
     }
     m <- .rchic_env$last_similarity_matrix
     df <- cbind(variable = rownames(m), as.data.frame(m))
-    csv_lines <- capture.output(write_csv_locale(df, row.names = FALSE))
+    csv_lines <- capture.output(write_csv_locale(df, row.names = FALSE, quote = FALSE))
     paste(csv_lines, collapse = "\n")
   }, error = function(e) {
     res$status <- 500
@@ -909,7 +909,7 @@ function(res) {
     }
     m <- .rchic_env$last_cohesion_matrix
     df <- cbind(variable = rownames(m), as.data.frame(m))
-    csv_lines <- capture.output(write_csv_locale(df, row.names = FALSE))
+    csv_lines <- capture.output(write_csv_locale(df, row.names = FALSE, quote = FALSE))
     paste(csv_lines, collapse = "\n")
   }, error = function(e) {
     res$status <- 500

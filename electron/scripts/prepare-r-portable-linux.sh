@@ -78,7 +78,7 @@ packages <- c(
     'httpuv', 'webutils', 'swagger', 'magrittr', 'crayon',
     'ellipsis', 'lifecycle', 'rlang', 'R6', 'stringi',
     'sodium', 'digest', 'globals', 'listenv', 'parallelly',
-    'Rcpp'
+    'Rcpp', 'stringr', 'stringi'
 )
 
 # Installer les packages (only required dependencies, not Suggests)

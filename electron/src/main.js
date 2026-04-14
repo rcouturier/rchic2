@@ -368,9 +368,12 @@ function getRPath() {
     } else {
       // Linux
       const bundledR = path.join(rPortablePath, 'bin', 'Rscript');
-      if (fs.existsSync(bundledR)) {
+      const bundledRHome = path.join(rPortablePath, 'lib', 'R', 'etc');
+      if (fs.existsSync(bundledR) && fs.existsSync(bundledRHome)) {
         log.info('Using bundled R');
         return bundledR;
+      } else if (fs.existsSync(bundledR)) {
+        log.warn('Bundled R binary found but R installation is incomplete, falling back to system R');
       }
     }
     log.info('Bundled R not found, falling back to system R');

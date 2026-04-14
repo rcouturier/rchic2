@@ -1071,7 +1071,7 @@ class RchicApp {
 
   async downloadMatrixFromAPI(endpoint, filename) {
     try {
-      const response = await fetch(window.location.origin + endpoint);
+      const response = await fetch(window.location.origin + endpoint + '?t=' + Date.now(), { cache: 'no-store' });
       if (!response.ok) return;
       const csvText = await response.text();
       if (csvText.startsWith('error,')) return;
