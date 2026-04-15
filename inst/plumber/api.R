@@ -108,6 +108,40 @@ set_locale <- function(locale) {
   }
 }
 
+# Traduction des sorties C++ (contributions / typicalites) selon la locale
+translate_cpp_output <- function(lines) {
+  locale <- .rchic_env$locale
+  if (is.null(locale) || locale == "en") return(lines)
+  repl <- switch(locale,
+    fr = list(
+      c("Contribution to the sublevels: ", "Contribution aux sous-niveaux : "),
+      c("Typicality to the sublevels: ", "Typicalite aux sous-niveaux : "),
+      c(" with classes at levels ", " avec classes aux niveaux "),
+      c(" contributes to this class with a risk of ", " contribue a cette classe avec un risque de "),
+      c(" is typical to this class with a risk of ", " est typique de cette classe avec un risque de "),
+      c("The most contributive variable is ", "La variable la plus contributive est "),
+      c("The most typical variable is ", "La variable la plus typique est "),
+      c("The variable ", "La variable "),
+      c(" with a risk of ", " avec un risque de ")
+    ),
+    pt = list(
+      c("Contribution to the sublevels: ", "Contribuicao aos subniveis: "),
+      c("Typicality to the sublevels: ", "Tipicidade aos subniveis: "),
+      c(" with classes at levels ", " com classes nos niveis "),
+      c(" contributes to this class with a risk of ", " contribui para esta classe com um risco de "),
+      c(" is typical to this class with a risk of ", " e tipica desta classe com um risco de "),
+      c("The most contributive variable is ", "A variavel mais contributiva e "),
+      c("The most typical variable is ", "A variavel mais tipica e "),
+      c("The variable ", "A variavel "),
+      c(" with a risk of ", " com um risco de ")
+    ),
+    NULL
+  )
+  if (is.null(repl)) return(lines)
+  for (r in repl) lines <- gsub(r[1], r[2], lines, fixed = TRUE)
+  lines
+}
+
 # Fonction pour ajouter un message a la console
 rchic_message <- function(...) {
   msg <- paste0(...)
@@ -568,16 +602,56 @@ function(selected_variables = NULL, contribution_supp = FALSE, typicality_supp =
     storage.mode(matrix_values) <- "numeric"
     row.names(matrix_values) <- row.names(.rchic_env$dataCSV)
 
-    # Appeler le calcul C++
-    result <- callSimilarityComputation(
-      sub_matrix,
-      as.numeric(sub_list_occ),
-      supp_matrix,
-      matrix_values,
-      contribution_supp,
-      typicality_supp,
-      FALSE  # verbose
+    # Appeler le calcul C++ en capturant la sortie Rcpp::Rcout via sink vers fichier
+    tmp_cpp <- tempfile(fileext = ".txt")
+    sink_con <- file(tmp_cpp, open = "wt")
+    sink(sink_con, type = "output")
+    result <- tryCatch(
+      callSimilarityComputation(
+        sub_matrix,
+        as.numeric(sub_list_occ),
+        supp_matrix,
+        matrix_values,
+        contribution_supp,
+        typicality_supp,
+        FALSE  # verbose
+      ),
+      finally = {
+        sink(type = "output")
+        close(sink_con)
+      }
     )
+    cpp_output <- tryCatch(readLines(tmp_cpp), error = function(e) character(0))
+    unlink(tmp_cpp)
+
+    # Pousser les lignes capturees dans la console web
+    if (length(cpp_output) > 0 && (contribution_supp || typicality_supp)) {
+      cpp_output <- translate_cpp_output(cpp_output)
+      header_patterns <- c("Contribution aux sous-niveaux",
+                           "Typicalite aux sous-niveaux",
+                           "Contribuicao aos subniveis",
+                           "Tipicidade aos subniveis",
+                           "Contribution to the sublevels",
+                           "Typicality to the sublevels")
+      best_patterns <- c("La variable la plus", "A variavel mais", "The most ")
+      rchic_message("")
+      rchic_message(paste0("===== ", tr("contributions"), " / ", tr("typicalities"), " ====="))
+      for (line in cpp_output) {
+        if (!nzchar(trimws(line))) next
+        is_header <- any(sapply(header_patterns, function(p) startsWith(trimws(line), p)))
+        is_best <- any(sapply(best_patterns, function(p) startsWith(trimws(line), p)))
+        if (is_header) {
+          rchic_message("")
+          rchic_message(paste0("--- ", trimws(line), " ---"))
+        } else if (is_best) {
+          rchic_message(paste0("  >> ", trimws(line)))
+        } else {
+          rchic_message(paste0("    ", trimws(line)))
+        }
+      }
+      rchic_message("")
+      rchic_message(paste0("===== ", tr("end_calculation"), " (", tr("contributions"), " / ", tr("typicalities"), ") ====="))
+    }
 
     # Extraire les resultats bruts du C++
     list_indexes_raw <- result[[1]][[1]]  # Ex: "(((1 4) 5) (2 3))"
@@ -746,16 +820,55 @@ function(computing_mode = 1, selected_variables = NULL, contribution_supp = FALS
     storage.mode(matrix_values) <- "numeric"
     row.names(matrix_values) <- row.names(.rchic_env$dataCSV)
 
-    # Appeler le calcul C++
-    result <- callHierarchyComputation(
-      sub_matrix,
-      as.numeric(sub_list_occ),
-      supp_matrix,
-      matrix_values,
-      contribution_supp,
-      typicality_supp,
-      FALSE
+    # Appeler le calcul C++ en capturant la sortie Rcpp::Rcout via sink vers fichier
+    tmp_cpp <- tempfile(fileext = ".txt")
+    sink_con <- file(tmp_cpp, open = "wt")
+    sink(sink_con, type = "output")
+    result <- tryCatch(
+      callHierarchyComputation(
+        sub_matrix,
+        as.numeric(sub_list_occ),
+        supp_matrix,
+        matrix_values,
+        contribution_supp,
+        typicality_supp,
+        FALSE
+      ),
+      finally = {
+        sink(type = "output")
+        close(sink_con)
+      }
     )
+    cpp_output <- tryCatch(readLines(tmp_cpp), error = function(e) character(0))
+    unlink(tmp_cpp)
+
+    if (length(cpp_output) > 0 && (contribution_supp || typicality_supp)) {
+      cpp_output <- translate_cpp_output(cpp_output)
+      header_patterns <- c("Contribution aux sous-niveaux",
+                           "Typicalite aux sous-niveaux",
+                           "Contribuicao aos subniveis",
+                           "Tipicidade aos subniveis",
+                           "Contribution to the sublevels",
+                           "Typicality to the sublevels")
+      best_patterns <- c("La variable la plus", "A variavel mais", "The most ")
+      rchic_message("")
+      rchic_message(paste0("===== ", tr("contributions"), " / ", tr("typicalities"), " ====="))
+      for (line in cpp_output) {
+        if (!nzchar(trimws(line))) next
+        is_header <- any(sapply(header_patterns, function(p) startsWith(trimws(line), p)))
+        is_best <- any(sapply(best_patterns, function(p) startsWith(trimws(line), p)))
+        if (is_header) {
+          rchic_message("")
+          rchic_message(paste0("--- ", trimws(line), " ---"))
+        } else if (is_best) {
+          rchic_message(paste0("  >> ", trimws(line)))
+        } else {
+          rchic_message(paste0("    ", trimws(line)))
+        }
+      }
+      rchic_message("")
+      rchic_message(paste0("===== ", tr("end_calculation"), " (", tr("contributions"), " / ", tr("typicalities"), ") ====="))
+    }
 
     # Extraire les resultats bruts du C++
     list_indexes_raw <- result[[1]][[1]]

@@ -435,21 +435,25 @@ class RchicApp {
   }
 
   async computeSimilarity(selectedVars) {
+    const contributionSupp = document.getElementById('similarity-contribution-supp').checked;
+    const typicalitySupp = document.getElementById('similarity-typicality-supp').checked;
     return await this.apiCall('/similarity', 'POST', {
       selected_variables: selectedVars,
-      contribution_supp: false,
-      typicality_supp: false
+      contribution_supp: contributionSupp,
+      typicality_supp: typicalitySupp
     });
   }
 
   async computeHierarchy(selectedVars) {
     const mode = document.getElementById('hierarchy-mode').value;
+    const contributionSupp = document.getElementById('hierarchy-contribution-supp').checked;
+    const typicalitySupp = document.getElementById('hierarchy-typicality-supp').checked;
 
     return await this.apiCall('/hierarchy', 'POST', {
       computing_mode: parseInt(mode),
       selected_variables: selectedVars,
-      contribution_supp: false,
-      typicality_supp: false
+      contribution_supp: contributionSupp,
+      typicality_supp: typicalitySupp
     });
   }
 
@@ -465,7 +469,7 @@ class RchicApp {
           selector: 'node',
           style: {
             'label': 'data(label)',
-            'background-color': '#4A90D9',
+            'background-color': '#BDD9F5',
             'color': '#2c3e50',
             'text-valign': 'center',
             'text-halign': 'center',

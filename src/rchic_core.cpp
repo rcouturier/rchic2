@@ -106,7 +106,7 @@ void ItemInConstitution(vector<int>& level,int& index,int v, vector<int>& LevelX
 void LevelInConstitution(vector<int>& level,int& index,int v, vector<int>& LevelX, vector<int>& LevelY)
 {
   level[index++]=v;
-  cout<<"level "<<level[index]<<endl;
+  Rcpp::Rcout<<"level "<<level[index]<<endl;
   if(LevelX[v]>=0)
   {
     LevelInConstitution(level,index,LevelX[v], LevelX, LevelY);
@@ -193,9 +193,9 @@ IntegerVector dynamic_cloud(NumericVector data, IntegerVector number_partition) 
   int nb_elt=data.size();
   
   int nb_partition=number_partition[0];
-  cout<<nb_partition<<endl;
+  Rcpp::Rcout<<nb_partition<<endl;
   
-  cout<<nb_elt<<endl;
+  Rcpp::Rcout<<nb_elt<<endl;
   int i,j,k;
   
   //vector<double> myvector (v_data, v_data+nb_elt);
@@ -211,7 +211,7 @@ IntegerVector dynamic_cloud(NumericVector data, IntegerVector number_partition) 
   
   i=0;
   /*for (NumericVector::iterator it=data.begin(); it!=data.end(); ++it){
-    cout<<*it<<endl;
+    Rcpp::Rcout<<*it<<endl;
     //v_data[i++]=*it;
   }*/
   
@@ -271,15 +271,15 @@ IntegerVector dynamic_cloud(NumericVector data, IntegerVector number_partition) 
         old_index=index;
       }
     }
-    //cout<<"W "<<W<<endl;
+    //Rcpp::Rcout<<"W "<<W<<endl;
   }
   
-  cout<<endl<<"Optimal Parameters"<<endl;
+  Rcpp::Rcout<<endl<<"Optimal Parameters"<<endl;
   for(j=0;j<nb_partition;j++)
   {
     val_start[j]=data[start[j]];
     val_end[j]=data[end[j]];
-    cout<<"From "<<val_start[j]<<" To "<<val_end[j]<<endl;
+    Rcpp::Rcout<<"From "<<val_start[j]<<" To "<<val_end[j]<<endl;
   }
   
   
@@ -442,9 +442,9 @@ bool verbose)
   
   
   //only to check the content of the list
-  //cout << "list contains:"<<endl;
+  //Rcpp::Rcout << "list contains:"<<endl;
   //for (it=list_pairs.begin(); it!=list_pairs.end(); ++it) {
-  //  cout << get<0>(*it) << ' '<<get<1>(*it) << ' '<<get<2>(*it) << ' '<<endl;
+  //  Rcpp::Rcout << get<0>(*it) << ' '<<get<1>(*it) << ' '<<get<2>(*it) << ' '<<endl;
   //}
   
   vector<double> signi(nb_levels);
@@ -454,7 +454,7 @@ bool verbose)
   for(i=0;i<nb_levels;i++)
   {
     if(verbose)
-      cout<<endl<<" Level "<<i+1<<" : ";
+      Rcpp::Rcout<<endl<<" Level "<<i+1<<" : ";
     
     for(j=0;j<=i;j++)
     {
@@ -492,11 +492,11 @@ bool verbose)
     int nb_elements_level=list_pairs_pairs.size();
     
     if(verbose) {
-      cout<<"size list pairs "<<list_pairs.size()<<endl;
+      Rcpp::Rcout<<"size list pairs "<<list_pairs.size()<<endl;
       for(l=0;l<nb_elements_level;l++)
       {
-        if(l%11==10) cout<<endl;
-        cout<<"c("<<(get<1>(list_pairs_pairs[l])+1)<<","<<(get<2>(list_pairs_pairs[l])+1)<<")="<<(get<0>(list_pairs_pairs[l]))<<" ";
+        if(l%11==10) Rcpp::Rcout<<endl;
+        Rcpp::Rcout<<"c("<<(get<1>(list_pairs_pairs[l])+1)<<","<<(get<2>(list_pairs_pairs[l])+1)<<")="<<(get<0>(list_pairs_pairs[l]))<<" ";
       }
     }
     
@@ -557,7 +557,7 @@ bool verbose)
     if(i!=0) localmax[i]=signi[i]-signi[i-1];
     else localmax[i]=signi[0];
     if(verbose)
-    cout<<"    G-SR="<<nb<<"  S="<<signi[i]<<"  V="<<localmax[i];
+    Rcpp::Rcout<<"    G-SR="<<nb<<"  S="<<signi[i]<<"  V="<<localmax[i];
     
   }
   double max=0;
@@ -571,7 +571,7 @@ bool verbose)
     }
   }
   //Debug
-  if(verbose) cout<<"Most significant level "<<index+1<<endl;
+  if(verbose) Rcpp::Rcout<<"Most significant level "<<index+1<<endl;
   
   for(i=0;i<nb_levels;i++)
   {
@@ -581,7 +581,7 @@ bool verbose)
     if(i==nb_levels-1 && i>0 && localmax[i]>localmax[i-1]) node=1;
     if(node) 
     {
-      if(verbose) cout<<"Significant level "<<i+1<<endl; 
+      if(verbose) Rcpp::Rcout<<"Significant level "<<i+1<<endl; 
       significant_nodes[i]+=1;
     }
   }
@@ -654,14 +654,14 @@ int Typi, int nb_col, int nb_row, List individuals, vector<string>& string_level
     
     
     if(Typi)
-    cout<<"Typicality to the sublevels: ";
+    Rcpp::Rcout<<"Typicality to the sublevels: ";
     else
-    cout<<"Contribution to the sublevels: ";
-    cout<<string_level[nb]<<" with classes at levels ";
+    Rcpp::Rcout<<"Contribution to the sublevels: ";
+    Rcpp::Rcout<<string_level[nb]<<" with classes at levels ";
     for(int i=0;i<nb_sub_level;i++) {
-      cout<<level[i]+1<<" ";
+      Rcpp::Rcout<<level[i]+1<<" ";
     }
-    cout<<endl;
+    Rcpp::Rcout<<endl;
     
     for(int i=0;i<nb_sub_level;i++) {
       ImpliVector[level[i]]=index_simi[GenPairX[i]][GenPairY[i]];
@@ -744,7 +744,7 @@ int Typi, int nb_col, int nb_row, List individuals, vector<string>& string_level
     
     i=0;
     for (myiter it=order.begin(); it!=order.end(); ++it) {
-      //cout << get<0>(*it) << ' '<<get<1>(*it) << ' '<<endl;
+      //Rcpp::Rcout << get<0>(*it) << ' '<<get<1>(*it) << ' '<<endl;
       Contrib_copy[i]=get<0>(*it);
       Contrib_index[i]=get<1>(*it);
       i++;
@@ -776,16 +776,16 @@ int Typi, int nb_col, int nb_row, List individuals, vector<string>& string_level
     if(verbose)
     {
       
-      cout<<"Optimal group"<<endl;
+      Rcpp::Rcout<<"Optimal group"<<endl;
       for(i=OptimalGroup;i<nb_row;i++) 
       {
-        if((i-OptimalGroup-1)%11==10) cout<<endl;
+        if((i-OptimalGroup-1)%11==10) Rcpp::Rcout<<endl;
         string v=individuals[Contrib_index[i]];
-        cout<<v<<" ";
+        Rcpp::Rcout<<v<<" ";
         
         
       }
-      cout<<endl;
+      Rcpp::Rcout<<endl;
     }
     
     
@@ -800,7 +800,7 @@ int Typi, int nb_col, int nb_row, List individuals, vector<string>& string_level
     
     int l;
     if (verbose) {
-      cout<<"card GO "<<n0<<"\t p "<<p<<"\t 1-p "<<un_p<<endl;
+      Rcpp::Rcout<<"card GO "<<n0<<"\t p "<<p<<"\t 1-p "<<un_p<<endl;
     }
     for(j=0;j<nb_comp_var;j++)
     {
@@ -832,15 +832,15 @@ int Typi, int nb_col, int nb_row, List individuals, vector<string>& string_level
         proba=1.-Normal((inter-moy)/ecart_type);
       }
       string v=supp_var[j];
-      cout<<"The variable "<<v;
+      Rcpp::Rcout<<"The variable "<<v;
       if(Typi)
-      cout<<" is typical to this class with a risk of "<<proba<<endl;
+      Rcpp::Rcout<<" is typical to this class with a risk of "<<proba<<endl;
       else
-      cout<<" contributes to this class with a risk of "<<proba<<endl;
+      Rcpp::Rcout<<" contributes to this class with a risk of "<<proba<<endl;
       if(verbose)
       {
-        cout<<"intersection with the optimal group ";
-        cout<<inter<<endl;
+        Rcpp::Rcout<<"intersection with the optimal group ";
+        Rcpp::Rcout<<inter<<endl;
       }
       if(min>proba)
       {
@@ -851,11 +851,11 @@ int Typi, int nb_col, int nb_row, List individuals, vector<string>& string_level
     }
     string v=supp_var[index];
     if(Typi)
-    cout<<endl<<"The most typical variable is "<<v;
+    Rcpp::Rcout<<endl<<"The most typical variable is "<<v;
     else
-    cout<<endl<<"The most contributive variable is "<<v;
+    Rcpp::Rcout<<endl<<"The most contributive variable is "<<v;
     
-    cout<<" with a risk of "<<min<<endl<<endl;
+    Rcpp::Rcout<<" with a risk of "<<min<<endl<<endl;
     
     
     
@@ -877,28 +877,28 @@ LogicalVector contribution_supp, LogicalVector typicality_supp, LogicalVector Ve
   bool contrib_supp=contribution_supp[0];
   bool typi_supp=typicality_supp[0];
   
-  if(verbose) cout<<verbose<<endl;
+  if(verbose) Rcpp::Rcout<<verbose<<endl;
   
   int nb_col=cohesion_matrix.ncol();
   int nb_row=cohesion_matrix.nrow();
-  if(verbose) cout<<nb_col<<endl;
+  if(verbose) Rcpp::Rcout<<nb_col<<endl;
   
   List list_names=cohesion_matrix.attr("dimnames");
   List list_names2=matrix_values.attr("dimnames");
   List variables=list_names[0];
   
-  //cout<<" list "<<list_names2.size()<<endl;
+  //Rcpp::Rcout<<" list "<<list_names2.size()<<endl;
   List individuals=list_names2[0];
-  //cout<<" list2 "<<individuals.size()<<endl;
+  //Rcpp::Rcout<<" list2 "<<individuals.size()<<endl;
   
   /*for(int i=0;i<variables.size();i++) {
     string v=variables[i];
-    cout<<v<<endl;
+    Rcpp::Rcout<<v<<endl;
   }
   
   for(int i=0;i<individuals.size();i++) {
     string v=individuals[i];
-    cout<<v<<endl;
+    Rcpp::Rcout<<v<<endl;
   }*/
   
   
@@ -1183,7 +1183,7 @@ LogicalVector contribution_supp, LogicalVector typicality_supp, LogicalVector Ve
       
       double a=Cohesion_classX(x,size_class[x],Index_cohesion,classes_associated_with);
       //Rprintf("Classification %d : %s  Cohesion %f\n",(f+1),cl[x],a);
-      if(verbose) cout<<"Classification "<<f+1<<" : "<<cl[x]<<" Cohesion "<<a<<endl;
+      if(verbose) Rcpp::Rcout<<"Classification "<<f+1<<" : "<<cl[x]<<" Cohesion "<<a<<endl;
       //string_level[f]=new char[strlen(cl[x])+3];
       //strcpy(string_level[f],cl[x]);
       string_level[f]=cl[x];
@@ -1331,28 +1331,28 @@ LogicalVector contribution_supp, LogicalVector typicality_supp, LogicalVector Ve
   bool typi_supp=typicality_supp[0];
   
   
-  //cout<<verbose<<endl;
+  //Rcpp::Rcout<<verbose<<endl;
   
   int nb_col=similarity_matrix.ncol();
   int nb_row=similarity_matrix.nrow();
-  //cout<<nb_col<<endl;
+  //Rcpp::Rcout<<nb_col<<endl;
   
   List list_names=similarity_matrix.attr("dimnames");
   List list_names2=matrix_values.attr("dimnames");
   List variables=list_names[0];
   
-  //cout<<" list "<<list_names2.size()<<endl;
+  //Rcpp::Rcout<<" list "<<list_names2.size()<<endl;
   List individuals=list_names2[0];
-  //cout<<" list2 "<<individuals.size()<<endl;
+  //Rcpp::Rcout<<" list2 "<<individuals.size()<<endl;
   
   for(int i=0;i<variables.size();i++) {
     string v=variables[i];
-    if(verbose) cout<<v<<endl;
+    if(verbose) Rcpp::Rcout<<v<<endl;
   }
   
   for(int i=0;i<individuals.size();i++) {
     string v=individuals[i];
-    if(verbose) cout<<v<<endl;
+    if(verbose) Rcpp::Rcout<<v<<endl;
   }
   
   
@@ -1628,7 +1628,7 @@ LogicalVector contribution_supp, LogicalVector typicality_supp, LogicalVector Ve
       cl[x] = stringStream2.str();
 
       //Rprintf("Classification %d : %s similarity %f\n",f+1,cl[x],max);
-      if(verbose) cout<<"Classification "<<f+1<<" : "<<cl[x]<<" Similarity "<<max<<endl;
+      if(verbose) Rcpp::Rcout<<"Classification "<<f+1<<" : "<<cl[x]<<" Similarity "<<max<<endl;
       //string_level[f]=new char[strlen(cl[x])+3];
       //strcpy(string_level[f],cl[x]);
       string_level[f]=cl[x];

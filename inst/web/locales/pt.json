@@ -34,6 +34,9 @@
     "showConfidence": "Mostrar confiança",
     "showCohesion": "Mostrar valores de coesão",
     "showSimilarity": "Mostrar similaridades",
+    "supplementaryVars": "Variáveis suplementares",
+    "contributionSupp": "Contribuições",
+    "typicalitySupp": "Tipicidades",
     "noOptions": "Sem opções adicionais"
   },
   "actions": {
