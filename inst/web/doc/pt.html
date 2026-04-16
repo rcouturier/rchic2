@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RCHIC2 - Documentacao</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; line-height: 1.6; background: #f8f9fa; }
+  .container { max-width: 900px; margin: 0 auto; padding: 30px 40px; background: #fff; min-height: 100vh; }
+  h1 { color: #2c3e50; font-size: 2em; margin-bottom: 8px; }
+  h1 small { font-size: 0.5em; color: #7f8c8d; font-weight: normal; }
+  h2 { color: #34495e; font-size: 1.4em; margin-top: 36px; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #3498db; }
+  h3 { color: #2c3e50; font-size: 1.1em; margin-top: 20px; margin-bottom: 8px; }
+  p { margin-bottom: 12px; }
+  ul, ol { margin-bottom: 12px; padding-left: 24px; }
+  li { margin-bottom: 4px; }
+  code { background: #ecf0f1; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .tip { background: #eaf6ff; border-left: 4px solid #3498db; padding: 10px 14px; margin: 12px 0; border-radius: 0 4px 4px 0; }
+  .warn { background: #fff8e1; border-left: 4px solid #f39c12; padding: 10px 14px; margin: 12px 0; border-radius: 0 4px 4px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  th, td { padding: 8px 12px; border: 1px solid #ddd; text-align: left; }
+  th { background: #f1f3f5; font-weight: 600; }
+  .toc { background: #f1f3f5; padding: 16px 24px; border-radius: 6px; margin: 20px 0; }
+  .toc a { color: #3498db; text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .toc ul { list-style: none; padding-left: 0; }
+  .toc li { margin: 4px 0; }
+  .lang-links { text-align: right; margin-bottom: 10px; }
+  .lang-links a { margin-left: 10px; color: #3498db; text-decoration: none; font-weight: 500; }
+  .lang-links a:hover { text-decoration: underline; }
+  kbd { background: #eee; border: 1px solid #ccc; border-radius: 3px; padding: 1px 5px; font-size: 0.85em; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="lang-links">
+  <a href="fr.html">FR</a>
+  <a href="en.html">EN</a>
+  <a href="pt.html"><b>PT</b></a>
+</div>
+
+<h1>RCHIC2 <small>Analise Estatistica Implicativa</small></h1>
+<p>Guia de utilizacao da aplicacao RCHIC2, ferramenta de Analise Estatistica Implicativa (AEI) para o estudo das relacoes entre variaveis binarias ou categoricas.</p>
+
+<div class="toc">
+  <strong>Indice</strong>
+  <ul>
+    <li><a href="#inicio">1. Inicio rapido</a></li>
+    <li><a href="#dados">2. Preparar os dados</a></li>
+    <li><a href="#interface">3. Interface da aplicacao</a></li>
+    <li><a href="#implicativo">4. Grafo Implicativo</a></li>
+    <li><a href="#similaridade">5. Arvore de Similaridade</a></li>
+    <li><a href="#hierarquia">6. Arvore Hierarquica</a></li>
+    <li><a href="#contribuicoes">7. Contribuicoes e Tipicidades</a></li>
+    <li><a href="#exportar">8. Exportar os resultados</a></li>
+    <li><a href="#console">9. Console de calculo</a></li>
+    <li><a href="#atalhos">10. Atalhos de teclado</a></li>
+  </ul>
+</div>
+
+<h2 id="inicio">1. Inicio rapido</h2>
+<ol>
+  <li>Inicie o RCHIC2.</li>
+  <li>Clique em <b>Carregar um arquivo CSV</b> e selecione o seu arquivo de dados.</li>
+  <li>Verifique se as suas variaveis aparecem no painel da direita.</li>
+  <li>Escolha um tipo de analise: <b>Grafo Implicativo</b>, <b>Arvore de Similaridade</b> ou <b>Arvore Hierarquica</b>.</li>
+  <li>Ajuste as opcoes se necessario e clique em <b>Calcular</b>.</li>
+  <li>Explore o resultado no separador <b>Visualizacao</b> e os detalhes no separador <b>Dados de calculo</b>.</li>
+</ol>
+
+<h2 id="dados">2. Preparar os dados</h2>
+<p>O RCHIC2 aceita arquivos no formato <b>CSV</b> (valores separados por ponto e virgula).</p>
+
+<h3>Estrutura esperada</h3>
+<table>
+  <tr><th></th><th>Variavel1</th><th>Variavel2</th><th>Altura.p</th><th>Genero.s</th></tr>
+  <tr><td>Aluno1</td><td>1</td><td>0</td><td>165</td><td>1</td></tr>
+  <tr><td>Aluno2</td><td>0</td><td>1</td><td>142</td><td>0</td></tr>
+</table>
+
+<ul>
+  <li><b>Primeira coluna</b>: identificadores das observacoes (alunos, individuos, etc.).</li>
+  <li><b>Colunas seguintes</b>: variaveis binarias (0/1) ou numericas.</li>
+</ul>
+
+<h3>Sufixos especiais</h3>
+<table>
+  <tr><th>Sufixo</th><th>Significado</th><th>Exemplo</th></tr>
+  <tr><td><code>.p</code></td><td><b>Variavel a particionar</b>: variavel numerica continua que sera automaticamente dividida em 3 classes (por defeito) usando um algoritmo de agrupamento.</td><td><code>Altura.p</code></td></tr>
+  <tr><td><code>.s</code></td><td><b>Variavel suplementar</b>: excluida da analise principal. Utilizada apenas para o calculo de contribuicoes e tipicidades.</td><td><code>Genero.s</code></td></tr>
+  <tr><td>(nenhum)</td><td>Variavel de analise padrao (binaria 0/1).</td><td><code>AprovaA</code></td></tr>
+</table>
+
+<div class="tip">
+  <b>Dica:</b> As variaveis suplementares (<code>.s</code>) permitem caracterizar as classes ou caminhos encontrados pela analise. Por exemplo, para identificar se um grupo e predominantemente composto por meninas ou meninos.
+</div>
+
+<h2 id="interface">3. Interface da aplicacao</h2>
+
+<h3>Barra lateral (esquerda)</h3>
+<ul>
+  <li><b>Carregar um arquivo CSV</b>: abre o seletor de arquivos.</li>
+  <li><b>Informacoes</b>: nome do arquivo, numero de observacoes e variaveis.</li>
+  <li><b>Calcular</b>: executa a analise selecionada.</li>
+  <li><b>Exportar</b>: guarda a imagem e os dados.</li>
+  <li><b>Tipo de analise</b>: escolha entre os tres tipos de analise.</li>
+  <li><b>Opcoes</b>: parametros especificos de cada tipo de analise.</li>
+</ul>
+
+<h3>Painel de variaveis (direita)</h3>
+<ul>
+  <li>Lista de todas as variaveis com caixas de selecao.</li>
+  <li>Botoes <b>Todos</b> / <b>Nenhum</b> para selecao rapida.</li>
+  <li>Apenas as variaveis marcadas sao incluidas no calculo.</li>
+</ul>
+
+<h3>Area principal</h3>
+<ul>
+  <li><b>Separador Visualizacao</b>: exibe o grafo ou a arvore.</li>
+  <li><b>Separador Dados de calculo</b>: exibe a consola com os resultados detalhados.</li>
+</ul>
+
+<h3>Seletor de idioma</h3>
+<p>No canto superior direito, escolha entre <b>FR</b> (frances), <b>EN</b> (ingles) ou <b>PT</b> (portugues). O idioma afeta a interface, as mensagens da consola e o formato de exportacao CSV.</p>
+
+<h2 id="implicativo">4. Grafo Implicativo</h2>
+<p>O grafo implicativo representa as relacoes de implicacao estatistica entre as variaveis. Um arco A &rarr; B significa: "quando A e verdadeiro, B tambem tende a ser verdadeiro".</p>
+
+<h3>Modos de calculo</h3>
+<table>
+  <tr><th>Modo</th><th>Descricao</th></tr>
+  <tr><td><b>Classico</b></td><td>Indice de implicacao padrao.</td></tr>
+  <tr><td><b>Classico + Confianca</b></td><td>Combina o indice de implicacao com a confianca da regra.</td></tr>
+  <tr><td><b>Implifiance</b></td><td>Indice de implifiance, especifico da AEI.</td></tr>
+  <tr><td><b>Entropico</b></td><td>Indice baseado na entropia (teoria da informacao).</td></tr>
+</table>
+
+<h3>Limiares e cores</h3>
+<p>Quatro limiares independentes (de 50 a 100) controlam a exibicao dos arcos:</p>
+<ul>
+  <li>Cada limiar tem uma caixa de ativacao, um cursor e uma escolha de cor.</li>
+  <li>Um arco e exibido se o seu valor de implicacao exceder pelo menos um limiar ativo.</li>
+  <li>A cor do arco corresponde ao limiar mais alto que excede.</li>
+</ul>
+
+<h3>Opcoes adicionais</h3>
+<ul>
+  <li><b>Grafo completo</b>: mostra as implicacoes em ambas as direcoes (A&rarr;B e B&rarr;A).</li>
+  <li><b>Mostrar confianca</b>: exibe o valor de confianca em cada arco.</li>
+</ul>
+
+<h3>Interagir com o grafo</h3>
+<ul>
+  <li><b>Clique num arco</b>: exibe os detalhes da regra (implicacao, confianca, contra-exemplos).</li>
+  <li><b>Clique num no</b>: exibe o nome da variavel e as suas ocorrencias.</li>
+  <li><b>Clique com o botao direito num no</b>: calcula as contribuicoes e/ou tipicidades das variaveis suplementares a partir desse no (ver secao 7).</li>
+</ul>
+
+<h2 id="similaridade">5. Arvore de Similaridade</h2>
+<p>A arvore de similaridade agrupa as variaveis pelo seu grau de semelhanca. Quanto mais semelhantes duas variaveis sao nas suas respostas, mais proximas aparecem na arvore.</p>
+
+<h3>Opcoes</h3>
+<ul>
+  <li><b>Mostrar similaridades</b>: exibe o valor de similaridade (0-1) em cada nivel de fusao.</li>
+  <li><b>Contribuicoes / Tipicidades</b>: ativa o calculo com as variaveis suplementares (ver secao 7).</li>
+</ul>
+
+<h3>Leitura da arvore</h3>
+<ul>
+  <li>As <b>variaveis</b> sao exibidas no topo (folhas).</li>
+  <li>As <b>linhas horizontais</b> indicam as fusoes entre grupos.</li>
+  <li>As fusoes <b>em vermelho</b> sao estatisticamente significativas.</li>
+  <li>Os valores de similaridade aparecem acima de cada fusao.</li>
+</ul>
+
+<h2 id="hierarquia">6. Arvore Hierarquica</h2>
+<p>A arvore hierarquica agrupa as variaveis em classes orientadas, tendo em conta a direcao da implicacao. A coesao mede a forca do vinculo dentro de cada classe.</p>
+
+<h3>Modos de calculo</h3>
+<table>
+  <tr><th>Modo</th><th>Descricao</th></tr>
+  <tr><td><b>Classico</b></td><td>Coesao padrao.</td></tr>
+  <tr><td><b>Classico + Confianca</b></td><td>Coesao ponderada pela confianca.</td></tr>
+  <tr><td><b>Implifiance</b></td><td>Coesao baseada na implifiance.</td></tr>
+</table>
+
+<h3>Opcoes</h3>
+<ul>
+  <li><b>Mostrar coesoes</b>: exibe o valor de coesao em cada nivel.</li>
+  <li><b>Contribuicoes / Tipicidades</b>: ativa o calculo com as variaveis suplementares (ver secao 7).</li>
+</ul>
+
+<h2 id="contribuicoes">7. Contribuicoes e Tipicidades</h2>
+<p>Estas analises permitem caracterizar as classes ou caminhos identificados pela analise atraves de <b>variaveis suplementares</b> (colunas com o sufixo <code>.s</code>).</p>
+
+<div class="warn">
+  <b>Pre-requisito:</b> O seu arquivo CSV deve conter pelo menos uma variavel suplementar (sufixo <code>.s</code>) para que estes calculos estejam disponiveis.
+</div>
+
+<h3>Contribuicao</h3>
+<p>Mede o quanto cada variavel suplementar <b>contribui para a formacao</b> de uma classe ou caminho. Um risco baixo indica uma contribuicao forte.</p>
+
+<h3>Tipicidade</h3>
+<p>Mede o quanto cada variavel suplementar e <b>representativa (tipica)</b> de uma classe ou caminho. Um risco baixo indica uma forte tipicidade.</p>
+
+<h3>Como ativar</h3>
+<table>
+  <tr><th>Tipo de analise</th><th>Metodo</th></tr>
+  <tr><td><b>Grafo Implicativo</b></td><td>Clique com o botao direito num no &rarr; menu contextual com 3 opcoes: Contribuicoes, Tipicidades, ou ambas.</td></tr>
+  <tr><td><b>Arvore de Similaridade</b></td><td>Marque <b>Contribuicoes</b> e/ou <b>Tipicidades</b> na secao "Variaveis suplementares" das opcoes, antes de calcular.</td></tr>
+  <tr><td><b>Arvore Hierarquica</b></td><td>Igual a arvore de similaridade.</td></tr>
+</table>
+
+<h3>Leitura dos resultados</h3>
+<p>Os resultados aparecem no separador <b>Dados de calculo</b>. Para cada classe ou caminho:</p>
+<ul>
+  <li>Cada variavel suplementar e listada com o seu <b>risco</b> (probabilidade).</li>
+  <li>A variavel com o risco mais baixo e destacada (<code>&gt;&gt;</code>).</li>
+  <li>Um risco &lt; 0.05 e geralmente considerado significativo.</li>
+</ul>
+
+<h2 id="exportar">8. Exportar os resultados</h2>
+<p>O botao <b>Exportar</b> guarda tanto a imagem como os dados:</p>
+
+<table>
+  <tr><th>Analise</th><th>Imagem</th><th>Dados</th></tr>
+  <tr><td>Grafo Implicativo</td><td>PNG (rchic_graph.png)</td><td>Matriz de implicacao (CSV)</td></tr>
+  <tr><td>Arvore de Similaridade</td><td>SVG (rchic_tree.svg)</td><td>Matriz de similaridade (CSV)</td></tr>
+  <tr><td>Arvore Hierarquica</td><td>SVG (rchic_tree.svg)</td><td>Matriz de coesao (CSV)</td></tr>
+</table>
+
+<div class="tip">
+  <b>Formato CSV:</b> O formato do arquivo CSV depende do idioma selecionado. Em frances e portugues, o separador e o ponto e virgula (<code>;</code>) e a virgula e o separador decimal. Em ingles, e a virgula (<code>,</code>) e o ponto decimal.
+</div>
+
+<h2 id="console">9. Console de calculo</h2>
+<p>O separador <b>Dados de calculo</b> exibe todos os resultados numericos:</p>
+<ul>
+  <li>Parametros do calculo (modo, limiar, opcoes ativadas).</li>
+  <li>Numero de variaveis, regras, nos, arestas.</li>
+  <li>Detalhes das classificacoes (para as arvores).</li>
+  <li>Contribuicoes e tipicidades (se ativadas).</li>
+  <li>Tabela de regras (para o grafo implicativo).</li>
+</ul>
+<p>Use <b>Atualizar</b> para recarregar e <b>Limpar</b> para esvaziar a consola.</p>
+
+<h2 id="atalhos">10. Atalhos de teclado</h2>
+<table>
+  <tr><th>Atalho</th><th>Acao</th></tr>
+  <tr><td><kbd>F7</kbd></td><td>Selecionar todas as variaveis</td></tr>
+  <tr><td><kbd>F8</kbd></td><td>Desselecionar todas as variaveis</td></tr>
+</table>
+
+<hr style="margin-top:40px;">
+<p style="color:#999;font-size:0.85em;margin-top:16px;">RCHIC2 &mdash; Analise Estatistica Implicativa &mdash; Raphael Couturier, Universite Marie et Louis Pasteur. Baseado na teoria de Regis Gras.</p>
+
+</div>
+</body>
+</html>
