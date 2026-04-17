@@ -1,4 +1,4 @@
-# RCHIC Server Startup Script
+# RCHIC2 Server Startup Script
 # Called by Electron to start the Plumber API
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -9,7 +9,7 @@ plumber_dir <- if (length(args) >= 2) args[2] else "."
 web_dir <- if (length(args) >= 3) args[3] else "../web"
 
 cat("===========================================\n")
-cat("  RCHIC Server\n")
+cat("  RCHIC2 Server\n")
 cat("===========================================\n")
 cat("Port:", port, "\n")
 cat("Plumber dir:", plumber_dir, "\n")

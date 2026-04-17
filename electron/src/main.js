@@ -97,7 +97,7 @@ log.transports.console.level = 'debug';
 
 // On Windows, also log to a known location for debugging
 if (process.platform === 'win32') {
-  log.transports.file.resolvePathFn = () => path.join(os.homedir(), 'RCHIC-debug.log');
+  log.transports.file.resolvePathFn = () => path.join(os.homedir(), 'RCHIC2-debug.log');
 }
 log.info('Log file location:', log.transports.file.getFile().path);
 
@@ -609,7 +609,15 @@ function buildMenu() {
       submenu: [
         {
           label: getMenuTranslation('documentation'),
-          click: () => shell.openExternal('https://github.com/rchic/Rchic/')
+          click: () => {
+            const docFile = getResourcePath(path.join('web', 'doc', `${currentLocale}.html`));
+            if (require('fs').existsSync(docFile)) {
+              const docWin = new BrowserWindow({ width: 960, height: 700, title: 'Documentation' });
+              docWin.loadFile(docFile);
+            } else {
+              shell.openExternal('https://github.com/rcouturier/rchic2');
+            }
+          }
         },
         {
           label: getMenuTranslation('about'),
@@ -707,11 +715,29 @@ async function openFile() {
 // About dialog
 // ---------------------------------------------------------------------------
 function showAbout() {
+  const aboutTexts = {
+    fr: {
+      title: 'À propos de RCHIC2',
+      message: 'RCHIC2 - Analyse Statistique Implicative',
+      detail: `Version: ${app.getVersion()}\n\nAuteur: Raphaël Couturier\nUniversité Marie et Louis Pasteur\n\nBasé sur la théorie de Régis Gras.`
+    },
+    en: {
+      title: 'About RCHIC2',
+      message: 'RCHIC2 - Statistical Implicative Analysis',
+      detail: `Version: ${app.getVersion()}\n\nAuthor: Raphaël Couturier\nUniversité Marie et Louis Pasteur\n\nBased on the theory of Régis Gras.`
+    },
+    pt: {
+      title: 'Sobre RCHIC2',
+      message: 'RCHIC2 - Análise Estatística Implicativa',
+      detail: `Version: ${app.getVersion()}\n\nAutor: Raphaël Couturier\nUniversité Marie et Louis Pasteur\n\nBaseado na teoria de Régis Gras.`
+    }
+  };
+  const t = aboutTexts[currentLocale] || aboutTexts.fr;
   dialog.showMessageBox(mainWindow, {
     type: 'info',
-    title: 'A propos de RCHIC',
-    message: 'RCHIC - Analyse Statistique Implicative',
-    detail: `Version: ${app.getVersion()}\n\nAuteur: Raphael Couturier\nUniversite de Franche-Comte\n\nBasé sur la theorie de Regis Gras.`
+    title: t.title,
+    message: t.message,
+    detail: t.detail
   });
 }
 

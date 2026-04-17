@@ -1,5 +1,5 @@
 /**
- * RCHIC Web Application
+ * RCHIC2 Web Application
  * Interface web pour l'Analyse Statistique Implicative
  */
 

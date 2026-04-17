@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
 # =============================================================================
-# RCHIC Web Server Launcher
+# RCHIC2 Web Server Launcher
 # Demarre le serveur Plumber avec l'interface web
 # =============================================================================
 
@@ -73,7 +73,7 @@ if (is.null(paths$api)) {
 }
 
 cat("=================================================\n")
-cat("        RCHIC Web Server\n")
+cat("        RCHIC2 Web Server\n")
 cat("=================================================\n")
 cat("\n")
 cat("API:        ", paths$api, "\n")

@@ -1,4 +1,4 @@
-# RCHIC Desktop - Application Electron
+# RCHIC2 Desktop - Application Electron
 
 Application desktop standalone pour l'Analyse Statistique Implicative.
 

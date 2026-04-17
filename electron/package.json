@@ -1,7 +1,7 @@
 {
   "name": "rchic-desktop",
   "version": "0.34.0",
-  "description": "RCHIC - Statistical Implicative Analysis",
+  "description": "RCHIC2 - Statistical Implicative Analysis",
   "main": "src/main.js",
   "author": "Raphael Couturier <raphael.couturier@univ-fcomte.fr>",
   "license": "GPL-3.0",
@@ -33,7 +33,7 @@
   },
   "build": {
     "appId": "fr.univ-fcomte.rchic",
-    "productName": "RCHIC",
+    "productName": "RCHIC2",
     "directories": {
       "output": "dist",
       "buildResources": "assets"

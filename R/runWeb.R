@@ -7,7 +7,7 @@
 #' @param launch_browser Ouvrir automatiquement le navigateur (defaut: TRUE)
 #'
 #' @details
-#' Cette fonction demarre un serveur web local qui expose l'API RCHIC
+#' Cette fonction demarre un serveur web local qui expose l'API RCHIC2
 #' et sert l'interface utilisateur. L'interface permet de:
 #' \itemize{
 #'   \item Charger des fichiers CSV
@@ -65,7 +65,7 @@ if (!requireNamespace("plumber", quietly = TRUE)) {
   }
 
   message("=================================================")
-  message("        RCHIC Web Server")
+  message("        RCHIC2 Web Server")
   message("=================================================")
   message("")
   message("API:  ", api_path)
@@ -96,7 +96,7 @@ if (!requireNamespace("plumber", quietly = TRUE)) {
 }
 
 
-#' @title Lance l'API RCHIC (mode headless)
+#' @title Lance l'API RCHIC2 (mode headless)
 #'
 #' @description Demarre uniquement l'API Plumber sans interface web.
 #' Utile pour les integrations avec d'autres applications.
@@ -130,7 +130,7 @@ runRchicAPI <- function(port = 8484, host = "0.0.0.0", docs = TRUE) {
     }
   }
 
-  message("RCHIC API Server")
+  message("RCHIC2 API Server")
   message("URL: http://", host, ":", port, "/api/")
   if (docs) {
     message("Docs: http://", host, ":", port, "/__docs__/")

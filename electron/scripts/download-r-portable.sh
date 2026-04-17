@@ -7,7 +7,7 @@ ELECTRON_DIR="$(dirname "$0")/.."
 mkdir -p "$ELECTRON_DIR/R-portable"
 
 echo "==================================="
-echo "  R Portable Downloader for RCHIC"
+echo "  R Portable Downloader for RCHIC2"
 echo "==================================="
 echo ""
 
