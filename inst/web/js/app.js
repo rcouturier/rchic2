@@ -525,6 +525,134 @@ class RchicApp {
     this.cy.on('tap', 'node', (e) => {
       this.showNodeInfo(e.target.data());
     });
+
+    // Prevent browser/Electron default context menu on graph container
+    document.getElementById('graph-container').addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+    });
+
+    // Right-click context menu on nodes for contributions/typicalities
+    this.cy.on('cxttap', 'node', (e) => {
+      const nodeData = e.target.data();
+      const pos = e.renderedPosition;
+      this.showNodeContextMenu(nodeData, pos);
+    });
+  }
+
+  showNodeContextMenu(nodeData, pos) {
+    // Remove existing menu
+    const existing = document.getElementById('node-context-menu');
+    if (existing) existing.remove();
+
+    const container = document.getElementById('graph-container');
+    const rect = container.getBoundingClientRect();
+    const menuX = rect.left + pos.x;
+    const menuY = rect.top + pos.y;
+
+    // Create overlay to capture clicks outside menu
+    const overlay = document.createElement('div');
+    overlay.id = 'node-context-menu-overlay';
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 99999; background: transparent;';
+
+    const menu = document.createElement('div');
+    menu.id = 'node-context-menu';
+    menu.style.cssText = `
+      position: fixed; left: ${menuX}px; top: ${menuY}px;
+      background: white; border: 1px solid #ccc; border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 100000; padding: 4px 0; min-width: 200px;
+    `;
+
+    const items = [
+      { label: window.i18n.t('context.contributions'), contrib: true, typi: false },
+      { label: window.i18n.t('context.typicalities'), contrib: false, typi: true },
+      { label: window.i18n.t('context.both'), contrib: true, typi: true }
+    ];
+
+    const self = this;
+    const cleanup = () => {
+      if (menu.parentNode) menu.remove();
+      if (overlay.parentNode) overlay.remove();
+    };
+
+    items.forEach(item => {
+      const btn = document.createElement('button');
+      btn.textContent = item.label;
+      btn.style.cssText = 'display: block; width: 100%; padding: 8px 16px; cursor: pointer; font-size: 13px; border: none; background: white; text-align: left;';
+      btn.onmouseenter = () => btn.style.background = '#f0f0f0';
+      btn.onmouseleave = () => btn.style.background = 'white';
+      btn.onclick = () => {
+        cleanup();
+        self.computeImplicativeContributions(nodeData.id, item.contrib, item.typi);
+      };
+      menu.appendChild(btn);
+    });
+
+    // Click on overlay = close menu
+    overlay.onclick = cleanup;
+
+    document.body.appendChild(overlay);
+    document.body.appendChild(menu);
+  }
+
+  findPathsFromNode(nodeId) {
+    // Find all paths from nodeId using DFS on the visible Cytoscape edges
+    const paths = [];
+    const dfs = (current, path, visited) => {
+      const outEdges = this.cy.edges(`[source = "${current}"]`);
+      let isLeaf = true;
+      outEdges.forEach(edge => {
+        const target = edge.data('target');
+        if (!visited.has(target)) {
+          isLeaf = false;
+          visited.add(target);
+          dfs(target, [...path, target], visited);
+          visited.delete(target);
+        }
+      });
+      if (isLeaf && path.length > 1) {
+        paths.push([...path]);
+      }
+    };
+    const visited = new Set([nodeId]);
+    dfs(nodeId, [nodeId], visited);
+    return paths;
+  }
+
+  async computeImplicativeContributions(nodeId, contribution, typicality) {
+    try {
+      // Find paths from the Cytoscape graph
+      const paths = this.findPathsFromNode(nodeId);
+      if (paths.length === 0) {
+        alert('No paths found from node: ' + nodeId);
+        return;
+      }
+
+      const resp = await fetch(`${this.apiBase}/implicative-contributions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          node_id: nodeId,
+          paths: paths,
+          contribution_supp: contribution,
+          typicality_supp: typicality
+        })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        const outputEl = document.getElementById('console-output');
+        const pre = document.createElement('pre');
+        pre.style.cssText = 'white-space: pre-wrap; font-family: monospace; font-size: 12px; margin: 8px 0; padding: 12px; background: #f8f9fa; border-radius: 4px;';
+        pre.textContent = data.output;
+        outputEl.appendChild(pre);
+        outputEl.scrollTop = outputEl.scrollHeight;
+      } else {
+        this.showToast(data.error || 'Error computing contributions', 'error');
+      }
+    } catch (e) {
+      console.error('Error:', e);
+      this.showToast(window.i18n.t('messages.connectionError'), 'error');
+    }
   }
 
   renderImplicativeGraph(data) {
@@ -708,7 +836,28 @@ class RchicApp {
         <span class="label">Occurrences:</span>
         <span class="value">${data.occurrences || 'N/A'}</span>
       </div>
+      <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 4px;">
+        <button id="btn-contrib" style="padding: 6px 10px; font-size: 12px; cursor: pointer; border: 1px solid #3498db; background: #eaf6ff; border-radius: 4px;">
+          ${window.i18n.t('context.contributions')}
+        </button>
+        <button id="btn-typi" style="padding: 6px 10px; font-size: 12px; cursor: pointer; border: 1px solid #3498db; background: #eaf6ff; border-radius: 4px;">
+          ${window.i18n.t('context.typicalities')}
+        </button>
+        <button id="btn-both" style="padding: 6px 10px; font-size: 12px; cursor: pointer; border: 1px solid #3498db; background: #eaf6ff; border-radius: 4px;">
+          ${window.i18n.t('context.both')}
+        </button>
+      </div>
     `;
+
+    document.getElementById('btn-contrib').onclick = () => {
+      this.computeImplicativeContributions(data.id, true, false);
+    };
+    document.getElementById('btn-typi').onclick = () => {
+      this.computeImplicativeContributions(data.id, false, true);
+    };
+    document.getElementById('btn-both').onclick = () => {
+      this.computeImplicativeContributions(data.id, true, true);
+    };
 
     infoPanel.classList.remove('hidden');
   }

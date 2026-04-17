@@ -76,6 +76,11 @@
     "implicanceIndex": "Índice de implifiance",
     "entropicIndex": "Índice entrópico"
   },
+  "context": {
+    "contributions": "Contribuições",
+    "typicalities": "Tipicidades",
+    "both": "Contribuições + Tipicidades"
+  },
   "messages": {
     "loadFilePrompt": "Carregue um arquivo CSV para iniciar a análise",
     "computing": "Calculando...",

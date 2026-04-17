@@ -116,9 +116,32 @@ callWriteTransactions <- function(data)  {
 #' @useDynLib rchic
 #' 
 
-callAsirules <- function(){ 
+callAsirules <- function(){
   b<-c("rchic","-l","-s0","-m1","-n2","-c0",'transaction.tab',"transaction.out")
   a<-length(b)
-  
+
   call_apriori(as.integer(a),as.character(b))
+}
+
+
+#' @title Calls the C++ implicative contributions computation.
+#'
+#' @description Computes contributions and typicalities of supplementary variables along a path in the implicative graph.
+#'
+#' @param implication_matrix   implication matrix of the variables.
+#' @param matrix_values        matrix with values of individuals.
+#' @param supplementary_variables  matrix of supplementary variables.
+#' @param path_variables       character vector of variable names forming the path.
+#' @param contribution_supp    boolean to compute contributions.
+#' @param typicality_supp      boolean to compute typicalities.
+#'
+#' @author Raphael Couturier
+#' @export
+#' @useDynLib rchic
+
+callImplicativeContributions <- function(implication_matrix, matrix_values,
+                                         supplementary_variables, path_variables,
+                                         contribution_supp, typicality_supp) {
+  .Call("_rchic_implicative_contributions", implication_matrix, matrix_values,
+        supplementary_variables, path_variables, contribution_supp, typicality_supp)
 }

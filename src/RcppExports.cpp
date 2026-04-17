@@ -78,11 +78,29 @@ BEGIN_RCPP
 END_RCPP
 }
 
+// implicative_contributions
+List implicative_contributions(NumericMatrix implication_matrix, NumericMatrix matrix_values, NumericMatrix supplementary_variables, StringVector path_variables, LogicalVector contribution_supp, LogicalVector typicality_supp);
+RcppExport SEXP _rchic_implicative_contributions(SEXP implication_matrixSEXP, SEXP matrix_valuesSEXP, SEXP supplementary_variablesSEXP, SEXP path_variablesSEXP, SEXP contribution_suppSEXP, SEXP typicality_suppSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type implication_matrix(implication_matrixSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type matrix_values(matrix_valuesSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type supplementary_variables(supplementary_variablesSEXP);
+    Rcpp::traits::input_parameter< StringVector >::type path_variables(path_variablesSEXP);
+    Rcpp::traits::input_parameter< LogicalVector >::type contribution_supp(contribution_suppSEXP);
+    Rcpp::traits::input_parameter< LogicalVector >::type typicality_supp(typicality_suppSEXP);
+    rcpp_result_gen = Rcpp::wrap(implicative_contributions(implication_matrix, matrix_values, supplementary_variables, path_variables, contribution_supp, typicality_supp));
+    return rcpp_result_gen;
+END_RCPP
+}
+
 static const R_CallMethodDef CallEntries[] = {
     {"_rchic_call_apriori", (DL_FUNC) &_rchic_call_apriori, 2},
     {"_rchic_write_transactions", (DL_FUNC) &_rchic_write_transactions, 1},
     {"_rchic_dynamic_cloud", (DL_FUNC) &_rchic_dynamic_cloud, 2},
     {"_rchic_hierarchy", (DL_FUNC) &_rchic_hierarchy, 7},
+    {"_rchic_implicative_contributions", (DL_FUNC) &_rchic_implicative_contributions, 6},
     {"_rchic_similarity", (DL_FUNC) &_rchic_similarity, 7},
     {NULL, NULL, 0}
 };

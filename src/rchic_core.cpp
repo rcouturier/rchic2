@@ -1743,11 +1743,210 @@ LogicalVector contribution_supp, LogicalVector typicality_supp, LogicalVector Ve
 //  
 //  
 //  
-//  
+//
 //  delete []cc;
-  
-  
+
+
   return results;
-  
-  
+
+
+}
+
+
+// [[Rcpp::export]]
+List implicative_contributions(NumericMatrix implication_matrix,
+                               NumericMatrix matrix_values,
+                               NumericMatrix supplementary_variables,
+                               StringVector path_variables,
+                               LogicalVector contribution_supp,
+                               LogicalVector typicality_supp) {
+
+  bool Contrib = contribution_supp[0];
+  bool Typi = typicality_supp[0];
+
+  int nb_row = matrix_values.nrow();
+  int nb_path = path_variables.size();
+
+  // Get variable names from implication matrix
+  StringVector var_names = colnames(implication_matrix);
+  int nb_vars = var_names.size();
+
+  // Map path variable names to indices in the implication matrix
+  std::vector<int> path_indices(nb_path);
+  for (int i = 0; i < nb_path; i++) {
+    std::string pvar = Rcpp::as<std::string>(path_variables[i]);
+    bool found = false;
+    for (int j = 0; j < nb_vars; j++) {
+      if (Rcpp::as<std::string>(var_names[j]) == pvar) {
+        path_indices[i] = j;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      Rcpp::stop("Variable not found in implication matrix: " + pvar);
+    }
+  }
+
+  // Number of pairs in the path
+  int nb_pairs = nb_path * (nb_path - 1) / 2;
+  if (nb_pairs == 0) nb_pairs = 1;
+
+  // Get implication values for all pairs in the path
+  std::vector<double> impli_values;
+  for (int j = 0; j < nb_path; j++) {
+    for (int k = j + 1; k < nb_path; k++) {
+      impli_values.push_back(implication_matrix(path_indices[j], path_indices[k]));
+    }
+  }
+
+  // Compute contribution for each individual
+  std::vector<double> contrib_values(nb_row, 0.0);
+
+  if (Typi) {
+    // Typicality mode
+    for (int i = 0; i < nb_row; i++) {
+      double cont = 0.0;
+      int pair_idx = 0;
+      for (int j = 0; j < nb_path; j++) {
+        for (int k = j + 1; k < nb_path; k++) {
+          double a = matrix_values(i, path_indices[j]);
+          double b = matrix_values(i, path_indices[k]);
+          double phi = FormImpli(a, b);
+          double impl_val = impli_values[pair_idx];
+          if (impl_val >= 1.0) impl_val = 0.999999999999;
+          cont += (impl_val - phi) * (impl_val - phi) / (1.0 - impl_val);
+          pair_idx++;
+        }
+      }
+      contrib_values[i] = sqrt(cont / nb_pairs);
+    }
+    // Normalize
+    double max_val = *std::max_element(contrib_values.begin(), contrib_values.end());
+    if (max_val > 0) {
+      for (int i = 0; i < nb_row; i++) {
+        contrib_values[i] = (max_val - contrib_values[i]) / max_val;
+      }
+    }
+  } else if (Contrib) {
+    // Contribution mode
+    for (int i = 0; i < nb_row; i++) {
+      double cont = 0.0;
+      for (int j = 0; j < nb_path; j++) {
+        for (int k = j + 1; k < nb_path; k++) {
+          double a = matrix_values(i, path_indices[j]);
+          double b = matrix_values(i, path_indices[k]);
+          double phi = FormImpli(a, b);
+          cont += (1.0 - phi) * (1.0 - phi);
+        }
+      }
+      contrib_values[i] = 1.0 - sqrt(cont / nb_pairs);
+    }
+  }
+
+  // Find optimal group by maximizing explained variance
+  std::vector<int> sorted_idx(nb_row);
+  for (int i = 0; i < nb_row; i++) sorted_idx[i] = i;
+  std::sort(sorted_idx.begin(), sorted_idx.end(), [&](int a, int b) {
+    return contrib_values[a] > contrib_values[b];
+  });
+
+  double total_mean = 0;
+  for (int i = 0; i < nb_row; i++) total_mean += contrib_values[i];
+  total_mean /= nb_row;
+
+  int best_n0 = 1;
+  double best_variance = 0;
+  for (int n0 = 1; n0 < nb_row; n0++) {
+    double sum0 = 0, sum1 = 0;
+    for (int i = 0; i < n0; i++) sum0 += contrib_values[sorted_idx[i]];
+    for (int i = n0; i < nb_row; i++) sum1 += contrib_values[sorted_idx[i]];
+    double mean0 = sum0 / n0;
+    double mean1 = sum1 / (nb_row - n0);
+    double var = n0 * (mean0 - total_mean) * (mean0 - total_mean) +
+                 (nb_row - n0) * (mean1 - total_mean) * (mean1 - total_mean);
+    if (var > best_variance) {
+      best_variance = var;
+      best_n0 = n0;
+    }
+  }
+
+  std::vector<bool> in_group(nb_row, false);
+  for (int i = 0; i < best_n0; i++) in_group[sorted_idx[i]] = true;
+
+  StringVector supp_names = colnames(supplementary_variables);
+  int nb_supp = supp_names.size();
+
+  std::string analysis_type = Typi ? "Typicality" : "Contribution";
+  Rcpp::Rcout << analysis_type << " to the path: ";
+  for (int i = 0; i < nb_path; i++) {
+    if (i > 0) Rcpp::Rcout << " -> ";
+    Rcpp::Rcout << Rcpp::as<std::string>(path_variables[i]);
+  }
+  Rcpp::Rcout << std::endl;
+  Rcpp::Rcout << "Optimal group size: " << best_n0 << " / " << nb_row << std::endl;
+
+  double best_risk = 1.0;
+  std::string best_var_name = "";
+
+  for (int j = 0; j < nb_supp; j++) {
+    int inter = 0;
+    int occ = 0;
+    for (int i = 0; i < nb_row; i++) {
+      if (supplementary_variables(i, j) == 1) {
+        occ++;
+        if (in_group[i]) inter++;
+      }
+    }
+
+    double p = (double)best_n0 / nb_row;
+    double un_p = 1.0 - p;
+    double proba;
+
+    if (occ * p * un_p <= 10 && occ - inter < 50) {
+      proba = 0;
+      for (int k = inter + 1; k <= occ; k++) {
+        double combi = 1.0;
+        for (int m = 0; m < k; m++) {
+          combi *= (double)(occ - m) / (m + 1);
+        }
+        proba += combi * pow(p, k) * pow(un_p, occ - k);
+      }
+    } else {
+      double ecart_type = sqrt(occ * p * un_p);
+      double moy = occ * p;
+      if (ecart_type > 0) {
+        proba = 1.0 - Normal((inter - moy) / ecart_type);
+      } else {
+        proba = 1.0;
+      }
+    }
+
+    std::string var_name = Rcpp::as<std::string>(supp_names[j]);
+
+    if (Typi) {
+      Rcpp::Rcout << "The variable " << var_name
+                  << " is typical to this path with a risk of " << proba << std::endl;
+    } else {
+      Rcpp::Rcout << "The variable " << var_name
+                  << " contributes to this path with a risk of " << proba << std::endl;
+    }
+
+    if (proba < best_risk) {
+      best_risk = proba;
+      best_var_name = var_name;
+    }
+  }
+
+  if (Typi) {
+    Rcpp::Rcout << "The most typical variable is " << best_var_name
+                << " with a risk of " << best_risk << std::endl;
+  } else {
+    Rcpp::Rcout << "The most contributive variable is " << best_var_name
+                << " with a risk of " << best_risk << std::endl;
+  }
+
+  List results;
+  results["success"] = true;
+  return results;
 }

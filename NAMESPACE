@@ -2,6 +2,7 @@
 
 export(callAsirules)
 export(callDynamicCloud)
+export(callImplicativeContributions)
 export(callHierarchyComputation)
 export(callSimilarityComputation)
 export(callWriteTransactions)

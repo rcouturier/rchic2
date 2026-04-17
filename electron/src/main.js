@@ -671,6 +671,11 @@ function createWindow() {
   // Create menu with current locale
   buildMenu();
 
+  // Disable cache in dev mode
+  if (isDev) {
+    mainWindow.webContents.session.clearCache();
+  }
+
   // Load the app
   mainWindow.loadURL(`http://127.0.0.1:${serverPort}/`);
 

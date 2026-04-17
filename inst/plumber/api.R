@@ -116,9 +116,14 @@ translate_cpp_output <- function(lines) {
     fr = list(
       c("Contribution to the sublevels: ", "Contribution aux sous-niveaux : "),
       c("Typicality to the sublevels: ", "Typicalite aux sous-niveaux : "),
+      c("Contribution to the path: ", "Contribution au chemin : "),
+      c("Typicality to the path: ", "Typicalite au chemin : "),
+      c("Optimal group size: ", "Taille du groupe optimal : "),
       c(" with classes at levels ", " avec classes aux niveaux "),
       c(" contributes to this class with a risk of ", " contribue a cette classe avec un risque de "),
       c(" is typical to this class with a risk of ", " est typique de cette classe avec un risque de "),
+      c(" contributes to this path with a risk of ", " contribue a ce chemin avec un risque de "),
+      c(" is typical to this path with a risk of ", " est typique de ce chemin avec un risque de "),
       c("The most contributive variable is ", "La variable la plus contributive est "),
       c("The most typical variable is ", "La variable la plus typique est "),
       c("The variable ", "La variable "),
@@ -127,9 +132,14 @@ translate_cpp_output <- function(lines) {
     pt = list(
       c("Contribution to the sublevels: ", "Contribuicao aos subniveis: "),
       c("Typicality to the sublevels: ", "Tipicidade aos subniveis: "),
+      c("Contribution to the path: ", "Contribuicao ao caminho: "),
+      c("Typicality to the path: ", "Tipicidade ao caminho: "),
+      c("Optimal group size: ", "Tamanho do grupo otimo: "),
       c(" with classes at levels ", " com classes nos niveis "),
       c(" contributes to this class with a risk of ", " contribui para esta classe com um risco de "),
       c(" is typical to this class with a risk of ", " e tipica desta classe com um risco de "),
+      c(" contributes to this path with a risk of ", " contribui para este caminho com um risco de "),
+      c(" is typical to this path with a risk of ", " e tipica deste caminho com um risco de "),
       c("The most contributive variable is ", "A variavel mais contributiva e "),
       c("The most typical variable is ", "A variavel mais tipica e "),
       c("The variable ", "A variavel "),
@@ -1105,6 +1115,139 @@ function(res) {
       n_variables = ncol(data) - 1,
       variables = var_stats
     )
+  }, error = function(e) {
+    res$status <- 500
+    list(success = FALSE, error = e$message)
+  })
+}
+
+# =============================================================================
+# Contributions / Typicalites du graphe implicatif (clic droit sur noeud)
+# =============================================================================
+
+#* Calculer contributions/typicalites pour les chemins depuis un noeud
+#* @post /api/implicative-contributions
+function(req, res) {
+  tryCatch({
+    body <- jsonlite::fromJSON(req$postBody)
+    node_id <- body$node_id
+    contribution_supp <- isTRUE(body$contribution_supp)
+    typicality_supp <- isTRUE(body$typicality_supp)
+
+    if (is.null(.rchic_env$dataCSV)) {
+      res$status <- 400
+      return(list(success = FALSE, error = "No data loaded"))
+    }
+
+    if (is.null(.rchic_env$last_implicative_matrix)) {
+      res$status <- 400
+      return(list(success = FALSE, error = "No implicative graph computed"))
+    }
+
+    impl_matrix <- .rchic_env$last_implicative_matrix
+    var_names <- colnames(impl_matrix)
+
+    if (!(node_id %in% var_names)) {
+      res$status <- 400
+      return(list(success = FALSE, error = paste("Variable not found:", node_id)))
+    }
+
+    # Supplementary variables
+    supplementary_variables <- .rchic_env$supplementary_variables
+    if (length(supplementary_variables) == 0 || is.null(supplementary_variables)) {
+      res$status <- 400
+      return(list(success = FALSE, error = "No supplementary variables available"))
+    }
+
+    supp_df <- data.frame(supplementary_variables)
+    supp_matrix <- as.matrix(supp_df)
+    storage.mode(supp_matrix) <- "numeric"
+
+    # Matrix values
+    matrix_values <- as.matrix(.rchic_env$dataCSV[, -1, drop = FALSE])
+    storage.mode(matrix_values) <- "numeric"
+
+    # Paths are computed client-side from the visible graph edges
+    # Re-parse postBody with simplifyVector=FALSE to preserve list-of-arrays structure
+    body_raw <- jsonlite::fromJSON(req$postBody, simplifyVector = FALSE)
+    raw_paths <- body_raw$paths
+    if (is.null(raw_paths) || length(raw_paths) == 0) {
+      res$status <- 400
+      return(list(success = FALSE, error = "No paths provided"))
+    }
+
+    # Convert paths to list of character vectors, filter out paths with < 2 nodes
+    paths <- lapply(raw_paths, function(p) as.character(unlist(p)))
+    paths <- paths[sapply(paths, length) >= 2]
+
+    if (length(paths) == 0) {
+      res$status <- 400
+      return(list(success = FALSE, error = "No valid paths (need at least 2 nodes)"))
+    }
+
+    # Run computation for each path, capturing output
+    all_output <- character(0)
+
+    for (path in paths) {
+      for (mode in c("contribution", "typicality")) {
+        if (mode == "contribution" && !contribution_supp) next
+        if (mode == "typicality" && !typicality_supp) next
+
+        tmp_cpp <- tempfile(fileext = ".txt")
+        sink_con <- file(tmp_cpp, open = "wt")
+        sink(sink_con, type = "output")
+        tryCatch(
+          callImplicativeContributions(
+            impl_matrix,
+            matrix_values,
+            supp_matrix,
+            as.character(path),
+            mode == "contribution",
+            mode == "typicality"
+          ),
+          finally = {
+            sink(type = "output")
+            close(sink_con)
+          }
+        )
+        cpp_lines <- tryCatch(readLines(tmp_cpp), error = function(e) character(0))
+        unlink(tmp_cpp)
+
+        if (length(cpp_lines) > 0) {
+          cpp_lines <- translate_cpp_output(cpp_lines)
+          all_output <- c(all_output, "", cpp_lines)
+        }
+      }
+    }
+
+    # Format output for console
+    formatted <- character(0)
+    path_num <- 0
+    for (line in all_output) {
+      if (grepl("^(Contribution|Typicality|Typicalite|Contribuicao|Tipicidade) ", line)) {
+        path_num <- path_num + 1
+        formatted <- c(formatted, "",
+                       "============================================================",
+                       paste0("  ", line),
+                       "============================================================", "")
+      } else if (grepl("most (contributive|typical)|plus (contributive|typique)|mais (contributiva|tipica)", line, ignore.case = TRUE)) {
+        formatted <- c(formatted, "", paste0("  >> ", line), "")
+      } else if (grepl("Optimal group|Taille du groupe|Tamanho do grupo", line)) {
+        formatted <- c(formatted, paste0("   ", line))
+      } else if (grepl("(contributes|contribue|contribui|is typical|est typique|tipica)", line)) {
+        formatted <- c(formatted, paste0("    ", line))
+      } else {
+        formatted <- c(formatted, line)
+      }
+    }
+
+    # Push to console
+    for (line in formatted) {
+      .rchic_env$console_messages <- c(.rchic_env$console_messages, line)
+    }
+
+    list(success = TRUE, output = paste(formatted, collapse = "\n"))
+
   }, error = function(e) {
     res$status <- 500
     list(success = FALSE, error = e$message)
