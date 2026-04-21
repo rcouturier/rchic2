@@ -920,14 +920,20 @@ LogicalVector contribution_supp, LogicalVector typicality_supp, LogicalVector Ve
   vector<double> Occurrences_variables(list_occurrences_variables.size());
   for(int i=0;i<list_occurrences_variables.size();i++)
   Occurrences_variables[i]=list_occurrences_variables[i];
-  
+  // Le comparateur Local (tri des paires par cohésion, départage par
+  // occurrences) indexe Occurrences_variables[0..nb_col-1]. Si l'appelant
+  // fournit un vecteur vide ou plus court que nb_col, on complète à 1.0
+  // (neutre) pour éviter un accès hors borne → segfault.
+  if ((int)Occurrences_variables.size() < nb_col)
+    Occurrences_variables.resize(nb_col, 1.0);
+
   vector<int> size_class(nb_col);
   vector<int> variable_left(nb_col);
   vector<int> tabb(nb_col);
   vector<int> variable_right(nb_col);
   vector<int> size_classe(nb_col);
-  
-  
+
+
   //WARNING nb_col+1 needed in case the hierarchy is complete
   TwoDint classes_associated_with(nb_col+1,vector<int> (nb_col+1));
   
@@ -1363,12 +1369,14 @@ LogicalVector contribution_supp, LogicalVector typicality_supp, LogicalVector Ve
   bool max_found;
   
   vector<int> level(nb_col);
-  
+
   vector<double> Occurrences_variables(list_occurrences_variables.size());
   for(int i=0;i<list_occurrences_variables.size();i++)
   Occurrences_variables[i]=list_occurrences_variables[i];
-  
-  
+  // Voir hierarchy() : même garde-fou pour le tri avec Local comparator.
+  if ((int)Occurrences_variables.size() < nb_col)
+    Occurrences_variables.resize(nb_col, 1.0);
+
   vector<int> size_class(nb_col);
   vector<int> variable_left(nb_col);
   vector<int> tabb(nb_col);
